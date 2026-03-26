@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Simple one-page scroll-snap presentation for Budget.sql in SAP Business One"
+    />
+    <title>Budget.sql Presentation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+
+      <header class="frame">
+        <div class="frame-brand">
+          <span class="frame-kicker">Budget.sql</span>
+          <strong>SAP Business One Presentation</strong>
+        </div>
+        <div class="frame-status">
+          <span class="frame-label">Current Slide</span>
+          <strong id="current-slide-label">Overview</strong>
+        </div>
+      </header>
+
+      <nav class="slide-dots" aria-label="Slide navigation">
+        <a class="slide-dot is-active" href="#overview" data-target="overview" aria-label="Overview"></a>
+        <a class="slide-dot" href="#workflow" data-target="workflow" aria-label="Workflow"></a>
+      </nav>
+
+      <main class="slides" id="slides">
+        <section class="slide" id="overview" data-label="Overview">
+          <div class="slide-content">
+            <p class="eyebrow">Overview</p>
+            <h1>ระบบนี้คือด่านตรวจงบก่อนบันทึกเอกสาร</h1>
+            <p class="lead">
+              <code>Budget.sql</code> ทำหน้าที่กันเอกสารที่ข้อมูลงบยังไม่พร้อมไม่ให้ผ่านเข้า SAP Business One
+              เพื่อให้การใช้เงินมีกรอบ ชัดเจน และไม่ต้องตามแก้ทีหลัง
+            </p>
+
+            <div class="stat-strip">
+              <article class="stat-card">
+                <span class="stat-value">6</span>
+                <span class="stat-label">เอกสารใน scope</span>
+              </article>
+              <article class="stat-card">
+                <span class="stat-value">3</span>
+                <span class="stat-label">สิ่งที่ระบบเช็กหลัก</span>
+              </article>
+              <article class="stat-card">
+                <span class="stat-value">1</span>
+                <span class="stat-label">final control layer</span>
+              </article>
+            </div>
+
+            <div class="overview-grid">
+              <article class="panel">
+                <h2>ถ้าไม่ผ่าน</h2>
+                <p>เอกสารถูก block ทันที และผู้ใช้ต้องกลับไปแก้ข้อมูล budget ให้ครบ</p>
+              </article>
+              <article class="panel">
+                <h2>ถ้าผ่าน</h2>
+                <p>เอกสารจึงพร้อมไปขั้นถัดไป และยังต้องผ่าน final control ก่อนจบ transaction</p>
+              </article>
+            </div>
+
+            <article class="overview-tabs panel">
+              <div class="overview-tab-list" role="tablist" aria-label="Overview audience views">
+                <button
+                  class="overview-tab is-active"
+                  id="overview-tab-business"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="overview-panel-business"
+                  data-panel="business"
+                >
+                  Business
+                </button>
+                <button
+                  class="overview-tab"
+                  id="overview-tab-developer"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="overview-panel-developer"
+                  data-panel="developer"
+                >
+                  Developer
+                </button>
+              </div>
+
+              <section
+                class="overview-tab-panel is-active"
+                id="overview-panel-business"
+                role="tabpanel"
+                aria-labelledby="overview-tab-business"
+              >
+                <article class="summary-band overview-summary-band">
+                  <strong>ระบบจะเช็ก 3 เรื่องหลัก</strong>
+                  <div class="card-grid">
+                    <article class="card">
+                      <h2>ฝ่าย / เจ้าของงบ</h2>
+                      <p>เอกสารต้องชี้ให้ชัดว่ารายการนี้เป็นความรับผิดชอบของหน่วยงานไหน</p>
+                    </article>
+                    <article class="card">
+                      <h2>ปีงบ</h2>
+                      <p>เอกสารต้องอยู่ในปีงบที่กำหนด ไม่ใช่ข้ามหรือหลุดจากกรอบที่ต้องคุม</p>
+                    </article>
+                    <article class="card">
+                      <h2>มีงบรองรับจริง</h2>
+                      <p>ถ้าไม่พบงบตามฝ่ายหรือ Project ระบบจะไม่ปล่อยเอกสารผ่าน</p>
+                    </article>
+                  </div>
+                </article>
+
+                <article class="summary-band overview-summary-band">
+                  <strong>เอกสารที่ถูกคุมในภาพรวม</strong>
+                  <div class="chip-row">
+                    <span>Draft</span>
+                    <span>PR</span>
+                    <span>PO</span>
+                    <span>AP Invoice</span>
+                    <span>AP Credit Memo</span>
+                    <span>JE</span>
+                  </div>
+                </article>
+              </section>
+
+              <section
+                class="overview-tab-panel"
+                id="overview-panel-developer"
+                role="tabpanel"
+                aria-labelledby="overview-tab-developer"
+                hidden
+              >
+                <article class="developer-banner">
+                  <span class="developer-badge">ต้องรีบแก้</span>
+                  <p>4 จุดนี้มีโอกาสทำให้ระบบ block ผิด, หลุดการตรวจ, หรือ support ยากใน production</p>
+                </article>
+
+                <div class="developer-grid">
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">Budget.sql:180-195</span>
+                    </div>
+                    <h2>Draft เช็กตัวแปรผิด</h2>
+                    <p><strong>ปัญหา:</strong> query เก็บผลลง <code>cnt1</code> แต่เงื่อนไขกลับเช็ก <code>cnt</code></p>
+                    <p><strong>ผลกระทบ:</strong> draft อาจถูก block ผิด หรือหลุดการตรวจปีงบได้</p>
+                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>If :cnt1 &gt; 0 Then</code> และ retest draft ทุกประเภท</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">Budget.sql:168-189</span>
+                    </div>
+                    <h2>Draft อ้างอิง ObjType น่าจะผิด</h2>
+                    <p><strong>ปัญหา:</strong> ใช้ <code>1470000049</code> ในจุดที่น่าจะตั้งใจคุม PR draft</p>
+                    <p><strong>ผลกระทบ:</strong> draft บางประเภทอาจไม่โดนตรวจ หรือไปตรวจเอกสารผิดประเภท</p>
+                    <p><strong>ควรแก้:</strong> ยืนยัน object type ที่ถูกต้อง ถ้าตั้งใจคุม PR ให้ตรวจเทียบกับ <code>1470000113</code></p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">Budget.sql:464-541</span>
+                    </div>
+                    <h2>กติกา Budget Year ไม่สอดคล้องกัน</h2>
+                    <p><strong>ปัญหา:</strong> PO ใช้ <code>LEFT(...,3) &lt;&gt; '202'</code> แต่ AP และ JE ใช้ <code>&lt; '2024'</code></p>
+                    <p><strong>ผลกระทบ:</strong> เอกสารแต่ละประเภทอาจผ่านหรือไม่ผ่านต่างกันทั้งที่ใช้ปีงบเดียวกัน</p>
+                    <p><strong>ควรแก้:</strong> กำหนด rule ปีงบกลางแบบเดียว แล้วใช้ซ้ำทุกเอกสาร</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">Budget.sql:4-541</span>
+                    </div>
+                    <h2>Error Code ใช้ซ้ำหลายความหมาย</h2>
+                    <p><strong>ปัญหา:</strong> <code>Error 100</code> ถูกใช้ทั้งกรณีไม่มีฝ่าย, ไม่มีปีงบ, และบางจุดใช้กับงบไม่พอ</p>
+                    <p><strong>ผลกระทบ:</strong> support วิเคราะห์สาเหตุยาก และผู้ใช้แยกปัญหาได้ไม่ชัด</p>
+                    <p><strong>ควรแก้:</strong> แยก error code ตามประเภทปัญหา และกำหนด message ให้ชัดเจน</p>
+                  </article>
+                </div>
+              </section>
+            </article>
+
+            <p class="slide-hint">เลื่อนลงเพื่อดู flow การทำงานและจุดที่แต่ละเอกสารถูก block</p>
+          </div>
+        </section>
+
+        <section class="slide" id="workflow" data-label="Workflow">
+          <div class="slide-content">
+            <p class="eyebrow">Workflow</p>
+            <h1>Flow ที่เห็นทั้งความเชื่อมโยงและเหตุผลที่ถูก block</h1>
+
+            <article class="workflow-intro-panel panel">
+              <p>
+                คลิกแต่ละเอกสารเพื่อดูว่าเชื่อมกับขั้นก่อนหน้าและขั้นถัดไปอย่างไร และใน
+                <code>Budget.sql</code> เอกสารนั้นถูก block ด้วยเงื่อนไขอะไรบ้าง
+              </p>
+            </article>
+
+            <div class="flow-toolbar">
+              <div class="flow-stage-status">
+                <span class="flow-stage-position" id="flow-stage-position">1 / 6</span>
+                <strong id="flow-stage-caption">Draft Gate</strong>
+              </div>
+              <div class="flow-nav">
+                <button class="flow-nav-button" id="flow-prev" type="button" aria-label="Previous stage">
+                  ก่อนหน้า
+                </button>
+                <button class="flow-nav-button" id="flow-next" type="button" aria-label="Next stage">
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+
+            <div class="flow-map" id="flow-map">
+              <button class="flow-chip is-active" type="button" data-stage="draft">
+                <span class="flow-chip-index">1</span>
+                <span class="flow-chip-label">Draft</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="pr">
+                <span class="flow-chip-index">2</span>
+                <span class="flow-chip-label">PR</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="po">
+                <span class="flow-chip-index">3</span>
+                <span class="flow-chip-label">PO</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="ap">
+                <span class="flow-chip-index">4</span>
+                <span class="flow-chip-label">AP / APCN</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="je">
+                <span class="flow-chip-index">5</span>
+                <span class="flow-chip-label">JE</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip flow-chip-final" type="button" data-stage="final">
+                <span class="flow-chip-index">6</span>
+                <span class="flow-chip-label">Final</span>
+              </button>
+            </div>
+
+            <article class="flow-detail panel" id="flow-detail">
+              <div class="flow-detail-head">
+                <p class="eyebrow" id="flow-detail-kicker">Stage 1</p>
+                <h2 id="flow-detail-title">Draft</h2>
+                <p id="flow-detail-summary">
+                  เอกสารร่างถูกคุมก่อนเกิดเอกสารจริง เพื่อกันข้อมูล budget ที่ยังไม่พร้อม
+                </p>
+                <div class="flow-tag-row" id="flow-detail-tags"></div>
+              </div>
+
+              <div class="flow-meta-grid">
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมจาก</span>
+                  <strong id="flow-detail-from">เริ่มต้นของรายการ</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมไป</span>
+                  <strong id="flow-detail-to">PR / PO / เอกสารจริง</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">ถ้าโดน block</span>
+                  <strong id="flow-detail-impact">ยังไม่พร้อมไปขั้นถัดไป</strong>
+                </article>
+              </div>
+
+              <div class="flow-detail-body">
+                <div class="flow-blocks-panel">
+                  <div class="flow-panel-head">
+                    <span class="flow-meta-label">Store Block Rules</span>
+                    <p id="flow-rule-caption">4 จุดที่ store ใช้ block draft</p>
+                  </div>
+                  <div class="flow-rule-stack" id="flow-detail-rules"></div>
+                </div>
+                <div class="flow-side-stack">
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">ถ้าผ่าน</span>
+                    <p id="flow-detail-pass">
+                      ผ่านแล้ว draft พร้อมใช้เป็นฐานของเอกสารถัดไป แต่ระบบไม่ได้สร้างเอกสารถัดไปให้อัตโนมัติ
+                    </p>
+                  </article>
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">หมายเหตุ Flow</span>
+                    <p id="flow-detail-note">store นี้ทำหน้าที่อนุญาตหรือไม่อนุญาตให้บันทึกเอกสารในขั้นนั้น</p>
+                  </article>
+                  <div class="flow-code-panel">
+                    <span class="flow-meta-label">Code refs / SQL</span>
+                    <p class="flow-code-hint">กดแต่ละรายการเพื่อดูเงื่อนไข SQL ของช่วงนั้น</p>
+                    <div class="code-dropdown-list" id="flow-detail-codes"></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <p class="workflow-note">
+              มุมมองนี้ทำให้เห็นพร้อมกัน 3 อย่าง: เชื่อมจากไหน, ไปต่อไหน, และถูก block ด้วยเงื่อนไขอะไร
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
