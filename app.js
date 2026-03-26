@@ -44,11 +44,16 @@ const flowDetailTags = document.querySelector("#flow-detail-tags");
 const flowDetailFrom = document.querySelector("#flow-detail-from");
 const flowDetailTo = document.querySelector("#flow-detail-to");
 const flowDetailImpact = document.querySelector("#flow-detail-impact");
-const flowRuleCaption = document.querySelector("#flow-rule-caption");
-const flowDetailRules = document.querySelector("#flow-detail-rules");
+const flowBlockRuleCaption = document.querySelector("#flow-block-rule-caption");
+const flowContinueRuleCaption = document.querySelector("#flow-continue-rule-caption");
+const flowDetailBlockRules = document.querySelector("#flow-detail-block-rules");
+const flowDetailContinueRules = document.querySelector("#flow-detail-continue-rules");
 const flowDetailPass = document.querySelector("#flow-detail-pass");
 const flowDetailNote = document.querySelector("#flow-detail-note");
-const flowDetailCodes = document.querySelector("#flow-detail-codes");
+const flowBlockCodeCaption = document.querySelector("#flow-block-code-caption");
+const flowContinueCodeCaption = document.querySelector("#flow-continue-code-caption");
+const flowDetailBlockCodes = document.querySelector("#flow-detail-block-codes");
+const flowDetailContinueCodes = document.querySelector("#flow-detail-continue-codes");
 
 const ndbsFlowChips = ndbsFlowMap ? [...ndbsFlowMap.querySelectorAll(".flow-chip")] : [];
 const ndbsFlowConnectors = ndbsFlowMap ? [...ndbsFlowMap.querySelectorAll(".flow-connector")] : [];
@@ -272,11 +277,15 @@ const workflowData = {
     pass: "เมื่อผ่านแล้ว Draft พร้อมให้เปิดต่อเป็นเอกสารจริงตาม flow ธุรกิจ แต่ยังไม่มีการจองงบหรือตัดงบใด ๆ เกิดขึ้น",
     note: "Draft อยู่ในด่านตรวจข้อมูลต้นทางล้วน ๆ และยังไม่มีการเขียน movement ลง ledger ให้ Draft โดยตรง",
     caption: "4 จุดที่ Draft ถูก block ตั้งแต่ก่อนเกิดเอกสารจริง",
+    blockCaption: "Store Rules ที่ทำให้ Draft ถูก block",
+    continueCaption: "Store Rules ที่ทำงานต่อเมื่อ Draft ผ่าน",
+    continueCodeCaption: "Draft ยังไม่มี call ต่อเข้า NDBS_BUDGET_CONTROL จึงไม่มีโค้ดทำงานต่อแยกออกมาจากด่านต้นทาง",
     tags: ["ด่านตรวจข้อมูลต้นทาง", "Draft only", "ยังไม่ถึงด่านคุมงบ"],
     rules: [
       {
         title: "ไม่มีฝ่าย",
         badge: "Error 100",
+        kind: "block",
         when: "Draft ของ PR/PO ที่ item เป็น non-inventory และ item group เปิด budget control แต่ OcrCode ว่าง",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และส่งข้อความ ISS รบกวนใส่ฝ่าย",
         impact: "Draft นี้ยังไม่พร้อมใช้เป็นฐานของ PR หรือ PO",
@@ -284,6 +293,7 @@ const workflowData = {
       {
         title: "ไม่มีปีงบ",
         badge: "Error 100",
+        kind: "block",
         when: "Draft ของ PR/PO/AP/APCN ที่ U_NDBS_BudgetYear ว่าง",
         action: "ด่านตรวจข้อมูลต้นทาง block ด้วยข้อความ ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "ผู้ใช้ยังเก็บ Draft ที่พร้อมใช้ต่อไม่ได้",
@@ -291,6 +301,7 @@ const workflowData = {
       {
         title: "ไม่มี budget ตามฝ่าย",
         badge: "Error 105",
+        kind: "block",
         when: "Draft ของ PR/PO ที่ไม่มี Project และหา budget ตามปีงบ + group account + department ไม่เจอ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 105 และแจ้ง ISS รบกวนตรวจสอบงบประมาณ",
         impact: "ร่างยังไม่ผ่านประตู budget ตั้งแต่ต้นทาง",
@@ -298,9 +309,18 @@ const workflowData = {
       {
         title: "ไม่มี budget ตาม Project",
         badge: "Error 209",
+        kind: "block",
         when: "Draft ที่มี Project แต่ไม่พบ project budget หรือ budget amount เป็น 0",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 209 และแจ้ง ISS รบกวนตรวจสอบงบประมาณProject",
         impact: "Draft สาย project จะไม่ไปต่อจนกว่าจะผูกงบ project ถูกต้อง",
+      },
+      {
+        title: "ผ่านแล้วไปต่อเป็นเอกสารจริง",
+        badge: "Continue",
+        kind: "continue",
+        when: "Draft ผ่านกฎของด่านต้นทางครบทุกข้อ",
+        action: "store อนุญาตให้ draft ถูกใช้เป็นฐานเปิดต่อเป็น PR, PO, AP หรือ APCN ตาม flow ธุรกิจ",
+        impact: "ขั้นนี้ยังไม่เรียก NDBS_BUDGET_CONTROL และยังไม่ขยับงบจริง",
       },
     ],
   },
@@ -316,11 +336,15 @@ const workflowData = {
     pass: "เมื่อผ่านด่านต้นทางแล้ว PR พร้อมเข้าสู่ approval และเป็นฐานให้ PO ส่วนถ้า route เข้าถึง NDBS_BUDGET_PR ได้ ระบบจะเริ่มลง movement ของ PR และคำนวณยอดคงเหลือต่อ",
     note: "จากไฟล์ปัจจุบัน NDBS_BUDGET_PR มี logic พร้อมใช้งาน แต่ทางเข้าจาก NDBS_BUDGET_CONTROL ยังควรรีบยืนยัน เพราะ outer IF ไม่รวม object_type ของ PR",
     caption: "4 จุด block ของ PR และ 1 จุดเสี่ยงของเส้นทาง PR ในชั้นคุมงบ",
+    blockCaption: "Store Rules ที่ทำให้ PR ถูก block",
+    continueCaption: "Store Rules ที่ทำงานต่อเมื่อ PR ผ่าน",
+    continueCodeCaption: "กดดูทั้งโค้ด route ที่ควรเรียก PR ต่อ และโค้ดใน NDBS_BUDGET_PR ที่ใช้ลง movement จริง",
     tags: ["Transaction Notification", "NDBS_BUDGET_PR", "ก่อน PO"],
     rules: [
       {
         title: "ไม่มีฝ่าย",
         badge: "Error 100",
+        kind: "block",
         when: "บรรทัด PR ที่เป็น non-inventory ไม่มี OcrCode",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนใส่ฝ่าย",
         impact: "PR ยังไม่พร้อมเข้าสู่ approval",
@@ -328,6 +352,7 @@ const workflowData = {
       {
         title: "ไม่มีปีงบ",
         badge: "Error 101",
+        kind: "block",
         when: "บรรทัด PR ที่เป็น non-inventory ไม่มี U_NDBS_BudgetYear",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 101 และแสดง ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "คำขอใช้เงินยังไม่อยู่ในกรอบ budget year ที่ระบบยอมรับ",
@@ -335,6 +360,7 @@ const workflowData = {
       {
         title: "ไม่มีงบตามฝ่าย",
         badge: "Error 501",
+        kind: "block",
         when: "PR ไม่มี Project แต่หา budget ตามปีงบ + account group + department ไม่เจอ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 501 และแสดง ISS รบกวนตรวจสอบงบประมาณ",
         impact: "PR ยังไม่สามารถใช้เป็นฐานของ PO ได้",
@@ -342,6 +368,7 @@ const workflowData = {
       {
         title: "ไม่มีงบตาม Project",
         badge: "Error 203",
+        kind: "block",
         when: "PR มี Project แต่หา project budget ไม่เจอหรือ budget amount เป็น 0",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 203 และแสดง ISS รบกวนตรวจสอบงบประมาณProject",
         impact: "PR สาย project จะหยุดที่ชั้นนี้จนกว่าจะมี budget setup รองรับ",
@@ -349,9 +376,18 @@ const workflowData = {
       {
         title: "Final layer ของ PR ดูเหมือนยังไม่ถูกเรียก",
         badge: "Urgent finding",
+        kind: "continue",
         when: "NDBS_BUDGET_CONTROL เปิด outer IF แค่ 30, 22, 21, 20, 18, 19 แต่ด้านในยังมี if object_type = 1470000113",
         action: "Call NDBS_BUDGET_PR อาจไม่ถูกเข้าถึงจริง",
         impact: "PR อาจผ่านแค่ด่านต้นทาง แต่ไม่ถูกคุมด้วย logic ขั้นสุดท้ายตามที่ตั้งใจ",
+      },
+      {
+        title: "ผ่านแล้วส่งต่อ approval และฐาน PO",
+        badge: "Continue",
+        kind: "continue",
+        when: "PR ผ่านกฎต้นทางครบและไม่ถูก block",
+        action: "store ปล่อยให้ PR ไปต่อใน approval flow และใช้เป็นฐานของ PO โดย route เข้าชั้น movement ต้องยืนยันเพิ่ม",
+        impact: "ธุรกิจไปต่อได้ แต่ฝั่ง runtime ของ NDBS_BUDGET_CONTROL ยังมีจุดเสี่ยงเรื่องทางเข้า PR",
       },
     ],
   },
@@ -367,11 +403,14 @@ const workflowData = {
     pass: "เมื่อผ่าน PO จะเริ่มสร้าง reserve movement ด้วย BudgetType = 'R' ใน OBDE หรือ OBPE แล้วพร้อมไหลไปขั้นถัดไป",
     note: "PO close และ line close มี logic คืนงบด้วย amount ติดลบ ส่วนฝั่ง project มี over-budget block ชัดเจน แต่ฝั่ง department มีบรรทัด block ถูก comment ไว้",
     caption: "5 จุดตรวจต้นทาง และ 1 จุด block ในด่านคุมงบขั้นสุดท้ายของ PO",
+    blockCaption: "Store Rules ที่ทำให้ PO ถูก block",
+    continueCaption: "Store Rules ที่ทำงานต่อเมื่อ PO ผ่าน",
     tags: ["ด่านต้นทาง + ด่านคุมงบ", "Reserve budget", "ก่อน GRPO/AP"],
     rules: [
       {
         title: "ไม่มีฝ่าย",
         badge: "Error 100",
+        kind: "block",
         when: "บรรทัด PO ที่เป็น non-inventory ไม่มี OcrCode",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนใส่ฝ่าย",
         impact: "PO ไม่ผ่านตั้งแต่ข้อมูลความรับผิดชอบของงบ",
@@ -379,6 +418,7 @@ const workflowData = {
       {
         title: "ไม่มีปีงบ",
         badge: "Error 102",
+        kind: "block",
         when: "บรรทัด PO ไม่มี U_NDBS_BudgetYear และ item group เปิด budget control",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 102 และแสดง ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "PO ยังไม่พร้อมใช้เป็นเอกสารอ้างอิงต่อ",
@@ -386,6 +426,7 @@ const workflowData = {
       {
         title: "ไม่มีงบตามฝ่าย",
         badge: "Error 100",
+        kind: "block",
         when: "PO ไม่มี Project แต่หา budget ตามปีงบ + account group + department ไม่เจอ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนตรวจสอบงบประมาณ",
         impact: "PO ยังไม่ผ่านประตู budget ฝั่ง department",
@@ -393,6 +434,7 @@ const workflowData = {
       {
         title: "ไม่มีงบตาม Project",
         badge: "Error 202",
+        kind: "block",
         when: "PO มี Project แต่หา project budget ไม่เจอหรือ budget amount เป็น 0",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 202 และแสดง ISS รบกวนตรวจสอบงบประมาณProject",
         impact: "PO ที่ใช้ project จะหยุดตรงนี้ทันที",
@@ -400,6 +442,7 @@ const workflowData = {
       {
         title: "ปีงบไม่ตรงรูปแบบ",
         badge: "Error 301",
+        kind: "block",
         when: "ค่า U_NDBS_BudgetYear ของ PO ไม่ขึ้นต้นตามรูปแบบที่ script ยอมรับ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 301 และแสดง ISS รบกวนตรวจสอบ Budget Year",
         impact: "แม้จะมี budget setup อยู่แล้ว แต่รูปแบบปีงบผิดก็ยังบันทึก PO ไม่ได้",
@@ -407,9 +450,18 @@ const workflowData = {
       {
         title: "Project over budget ในด่านคุมงบขั้นสุดท้าย",
         badge: "Error -32",
+        kind: "block",
         when: "PO ผ่านด่านต้นทางแล้ว แต่ path ฝั่ง project มี budget available น้อยกว่ายอดที่จะ reserve",
         action: "ด่านคุมงบขั้นสุดท้ายตั้ง error = -32 และส่งข้อความ Project ... Over budget",
         impact: "PO ถูกหยุดในชั้น reserve แม้ผ่านด่านต้นทางมาแล้ว",
+      },
+      {
+        title: "ผ่านแล้วเรียก NDBS_BUDGET_CONTROL",
+        badge: "Continue",
+        kind: "continue",
+        when: "PO ผ่าน transaction notification และ error ยังเป็น 0",
+        action: "store เรียก NDBS_BUDGET_CONTROL เพื่อสร้าง reserve movement และส่งต่อไป NDBS_UpdateBudgetAmount",
+        impact: "งบเริ่มถูกกันจริง และ PO กลายเป็นฐานให้ GRPO หรือ A/P Invoice ไปต่อ",
       },
     ],
   },
@@ -425,11 +477,14 @@ const workflowData = {
     pass: "เมื่อผ่านด่านคุมงบขั้นสุดท้าย ระบบจะ mark movement เดิมเป็น A หรือ C แล้วเขียน movement ใหม่เพื่อสะท้อน actual usage หรือ reversal",
     note: "A/P Invoice กับ APCN ไม่ถูกคุมเหมือนกันทั้งหมด: APCN ไม่มี rule format ปีงบในด่านต้นทาง และ project path ของ APCN มีเงื่อนไข Project ที่ควรรีบแก้",
     caption: "3 จุด block ในด่านต้นทาง และ 1 จุดเสี่ยงในด่านคุมงบขั้นสุดท้ายของ AP / APCN",
+    blockCaption: "Store Rules ที่ทำให้ AP / APCN ถูก block",
+    continueCaption: "Store Rules ที่ทำงานต่อเมื่อ AP / APCN ผ่าน",
     tags: ["ด่านต้นทาง + ด่านคุมงบ", "Actual / Reverse", "ขั้นเจ้าหนี้"],
     rules: [
       {
         title: "A/P Invoice ไม่มีปีงบ",
         badge: "Error 100",
+        kind: "block",
         when: "บรรทัด A/P Invoice ไม่มี U_NDBS_BudgetYear และ item group เปิด budget control",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "ยังไม่รับรู้เจ้าหนี้จากเอกสารนั้น",
@@ -437,6 +492,7 @@ const workflowData = {
       {
         title: "A/P Invoice ปีงบไม่ตรงรูปแบบ",
         badge: "Error 302",
+        kind: "block",
         when: "U_NDBS_BudgetYear ของ A/P Invoice มีค่าน้อยกว่ากรอบปีที่ script ยอมรับ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 302 และแสดง ISS รบกวนตรวจสอบ Budget Year",
         impact: "แม้เอกสารต้นทางผ่านมาแล้ว A/P Invoice ก็ยังถูก block ได้",
@@ -444,6 +500,7 @@ const workflowData = {
       {
         title: "A/P Credit Memo ไม่มีปีงบ",
         badge: "Error 100",
+        kind: "block",
         when: "บรรทัด A/P Credit Memo ไม่มี U_NDBS_BudgetYear และ item group เปิด budget control",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "การกลับรายการฝั่งเจ้าหนี้ยังไม่สามารถบันทึกได้",
@@ -451,9 +508,18 @@ const workflowData = {
       {
         title: "Project condition ของ APCN เสี่ยงเข้าทางผิด",
         badge: "High risk",
+        kind: "block",
         when: "project path ของ APCN ใช้เงื่อนไข IF (Project IS NOT NULL) OR (Project != '')",
         action: "ด่านคุมงบขั้นสุดท้ายอาจเข้า logic ฝั่ง project แม้ค่า project ไม่สมบูรณ์",
         impact: "เสี่ยง update หรือ reverse movement ผิดเส้นทางของเอกสาร",
+      },
+      {
+        title: "ผ่านแล้วเรียก NDBS_BUDGET_CONTROL",
+        badge: "Continue",
+        kind: "continue",
+        when: "AP หรือ APCN ผ่านกฎต้นทางครบและ error ยังเป็น 0",
+        action: "store เรียก NDBS_BUDGET_CONTROL เพื่อรับรู้ actual usage หรือ reverse movement แล้วคำนวณยอดคงเหลือต่อ",
+        impact: "งบฝั่งเจ้าหนี้ถูกอัปเดตตาม invoice หรือ credit memo จริง",
       },
     ],
   },
@@ -469,11 +535,14 @@ const workflowData = {
     pass: "เมื่อผ่านด่านคุมงบขั้นสุดท้าย ระบบจะ insert actual movement ด้วย BudgetType = 'A' ลง OBDE หรือ OBPE และ recalc งบคงเหลือทันที",
     note: "ด่านตรวจข้อมูลต้นทางไม่ได้เช็ก budget ตามฝ่ายหรือ project สำหรับ JE เหมือน PR/PO แต่ด่านคุมงบขั้นสุดท้ายจะเป็นชั้นที่ขยับงบจริง",
     caption: "2 จุด block ของ JE ก่อน post และ 1 การขยับงบหลังผ่าน",
+    blockCaption: "Store Rules ที่ทำให้ JE ถูก block",
+    continueCaption: "Store Rules ที่ทำงานต่อเมื่อ JE ผ่าน",
     tags: ["ด่านต้นทาง + ด่านคุมงบ", "Actual posting", "ปลายทางบัญชี"],
     rules: [
       {
         title: "ไม่มีปีงบ",
         badge: "Error 100",
+        kind: "block",
         when: "บรรทัด JE ไม่มี U_NDBS_BudgetYear",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 100 และแสดง ISS รบกวนตรวจสอบปีงบประมาณ",
         impact: "JE ยังไม่ถูก post เข้า ledger",
@@ -481,6 +550,7 @@ const workflowData = {
       {
         title: "ปีงบไม่ตรงรูปแบบ",
         badge: "Error 303",
+        kind: "block",
         when: "U_NDBS_BudgetYear ของ JE ต่ำกว่ากรอบปีที่ script ยอมรับ",
         action: "ด่านตรวจข้อมูลต้นทางตั้ง error = 303 และแสดง ISS รบกวนตรวจสอบ Budget Year",
         impact: "JE ถูกหยุดแม้จะเป็นการลงบัญชีตรงโดยไม่ผ่าน PR หรือ PO",
@@ -488,6 +558,7 @@ const workflowData = {
       {
         title: "ผ่านแล้วลง actual ทันที",
         badge: "Final movement",
+        kind: "continue",
         when: "JE ผ่านด่านต้นทางและไม่มี error จากขั้นก่อนหน้า",
         action: "ด่านคุมงบขั้นสุดท้าย insert movement ใหม่ลง OBDE/OBPE และเรียก NDBS_UpdateBudgetAmount",
         impact: "งบคงเหลือถูกปรับตาม JE ทันทีหลังบันทึก",
@@ -506,11 +577,14 @@ const workflowData = {
     pass: "เมื่อไม่มี error ด่านคุมงบขั้นสุดท้ายจะเขียน movement ตามสถานะเอกสาร อัปเดตยอดคงเหลือผ่าน NDBS_UpdateBudgetAmount และลบแถว Amount = 0 ก่อนจบ",
     note: "ตอนนี้ flow หลักชัดเจนแล้วว่า Transaction Notification เรียก NDBS_BUDGET_CONTROL แล้วค่อยให้ NDBS_UpdateBudgetAmount ปรับยอดคงเหลือ ส่วน PR ยังควรรีบตรวจเรื่อง route เข้าถึง",
     caption: "5 เรื่องที่ด่านคุมงบขั้นสุดท้ายทำจริงกับงบ และ 1 จุด block สำคัญที่ยัง active อยู่",
+    blockCaption: "Store Rules ที่ยังทำให้ flow หยุดในด่านสุดท้าย",
+    continueCaption: "Store Rules ที่ทำงานต่อหลังเข้า NDBS_BUDGET_CONTROL",
     tags: ["ด่านคุมงบขั้นสุดท้าย", "Reserve / Actual / Reverse", "ก่อน commit"],
     rules: [
       {
         title: "เขียน log ก่อนเข้ากระบวนการ",
         badge: "Store log",
+        kind: "continue",
         when: "error จากชั้นแรกยังเป็น 0",
         action: "procedure insert ข้อมูลเข้า NDBS_STORE_TABLE ก่อนเริ่ม branch ตาม object type",
         impact: "มี trace ว่า transaction ไหนถูกส่งเข้าด่านคุมงบขั้นสุดท้าย",
@@ -518,6 +592,7 @@ const workflowData = {
       {
         title: "เขียน movement ลง 2 ledger",
         badge: "OBDE / OBPE",
+        kind: "continue",
         when: "เอกสารผ่าน branch ที่เกี่ยวข้องกับ department หรือ project",
         action: "insert / update movement ลง NDBS_BGC_OBDE หรือ NDBS_BGC_OBPE พร้อม BudgetStatus เช่น I, A, C",
         impact: "งบถูกแปลงเป็น reserve, actual หรือ cancellation ตามสถานะเอกสารจริง",
@@ -525,6 +600,7 @@ const workflowData = {
       {
         title: "อัปเดตงบคงเหลือทุกครั้ง",
         badge: "Recalculate",
+        kind: "continue",
         when: "หลังมี movement ใหม่หรือมีการกลับสถานะ movement เดิม",
         action: "เรียก NDBS_UpdateBudgetAmount ซ้ำตาม budget group, year และ department/project ที่เกี่ยวข้อง",
         impact: "งบคงเหลือใน master ถูกปรับตามธุรกรรมล่าสุด",
@@ -532,6 +608,7 @@ const workflowData = {
       {
         title: "Project over budget ยัง block อยู่จริง",
         badge: "Error -32",
+        kind: "block",
         when: "project path ของ PO reserve แล้ว budget available ไม่พอ",
         action: "procedure ส่ง error = -32 และข้อความ Project ... Over budget กลับออกมา",
         impact: "เอกสารถูกหยุดที่ด่านสุดท้าย แม้ผ่านด่านต้นทางมาแล้ว",
@@ -539,6 +616,7 @@ const workflowData = {
       {
         title: "ปิดเอกสารแล้วคืนงบและล้างแถวศูนย์",
         badge: "Close / Cleanup",
+        kind: "continue",
         when: "PO close, line close, cancel หรือ reversal จบแล้ว",
         action: "insert amount ติดลบเพื่อคืนงบ และลบแถวใน OBDE / OBPE ที่ Amount = 0",
         impact: "ledger ของงบไม่ค้างยอดที่ไม่ควรมีหลังเอกสารถูกปิดหรือย้อนกลับ",
@@ -666,6 +744,7 @@ select :error, :error_message FROM dummy;`,
 const workflowCodeLibrary = {
   draft: [
     {
+      kind: "block",
       label: "ไม่มีฝ่าย | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:717-736",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -686,6 +765,7 @@ const workflowCodeLibrary = {
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีปีงบ | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:742-760",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -702,6 +782,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตามฝ่าย | Error 105",
       ref: "SBO_SP_TransactionNotification.sql:767-805",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
@@ -719,6 +800,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตาม Project | Error 209",
       ref: "SBO_SP_TransactionNotification.sql:901-936",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
@@ -736,6 +818,7 @@ End If;`,
   ],
   pr: [
     {
+      kind: "block",
       label: "ไม่มีฝ่าย | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:565-583",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -753,6 +836,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีปีงบ | Error 101",
       ref: "SBO_SP_TransactionNotification.sql:585-602",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -768,6 +852,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตามฝ่าย | Error 501",
       ref: "SBO_SP_TransactionNotification.sql:857-893",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
@@ -784,6 +869,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตาม Project | Error 203",
       ref: "SBO_SP_TransactionNotification.sql:986-1020",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
@@ -799,6 +885,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "continue",
       label: "PR final call ดูเหมือนเข้าไม่ถึง",
       ref: "NDBS_BUDGET_CONTROL.sql:483-491",
       snippet: `Insert Into NDBS_STORE_TABLE
@@ -813,9 +900,24 @@ if :error = 0 then
   end if;
 end if;`,
     },
+    {
+      kind: "continue",
+      label: "ถ้า route ถึง PR จะลง movement และคำนวณยอดต่อ",
+      ref: "NDBS_BUDGET_PR.sql:74-82, 124-132",
+      snippet: `INSERT INTO "NDBS_BGC_OBDE"
+("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
+"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
+"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine")
+VALUES
+(:AutoKey,currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),currloop."OcrCode",'1470000113',currloop."DocEntry",currloop."LineNum",
+ '',0,0,currloop."LineTotal",'R',currloop."DocDate",'I','1470000113',currloop."DocEntry",currloop."LineNum");
+
+Call NDBS_UpdateBudgetAmount(currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),'D',currloop."OcrCode");`,
+    },
   ],
   po: [
     {
+      kind: "block",
       label: "ไม่มีฝ่าย | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:605-623",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -832,6 +934,7 @@ end if;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีปีงบ | Error 102",
       ref: "SBO_SP_TransactionNotification.sql:626-645",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -848,6 +951,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตามฝ่าย | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:814-850",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
@@ -864,6 +968,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "ไม่มีงบตาม Project | Error 202",
       ref: "SBO_SP_TransactionNotification.sql:945-979",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
@@ -879,6 +984,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "Budget Year ไม่ตรงรูปแบบ | Error 301",
       ref: "SBO_SP_TransactionNotification.sql:1027-1056",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -894,6 +1000,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "continue",
       label: "ผ่านแล้วจองงบฝั่ง Department | OBDE",
       ref: "NDBS_BUDGET_CONTROL.sql:530-601",
       snippet: `INSERT INTO "NDBS_BGC_OBDE"
@@ -907,6 +1014,7 @@ VALUES
 Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
     },
     {
+      kind: "block",
       label: "Department over budget ถูก comment ไว้",
       ref: "NDBS_BUDGET_CONTROL.sql:603-614",
       snippet: `else
@@ -916,6 +1024,7 @@ Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
 end if;`,
     },
     {
+      kind: "block",
       label: "Project over budget | Error -32",
       ref: "NDBS_BUDGET_CONTROL.sql:1379-1416",
       snippet: `else
@@ -924,6 +1033,24 @@ end if;`,
 end if;`,
     },
     {
+      kind: "continue",
+      label: "ผ่านแล้วจองงบฝั่ง Project | OBPE",
+      ref: "NDBS_BUDGET_CONTROL.sql:1367-1378",
+      snippet: `if(:transaction_type IN ('A','U')) then
+  AutoKey = :AutoKey+1;
+  INSERT INTO "NDBS_BGC_OBPE"
+  ("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
+  "BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
+  "PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine")
+  VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'22',:DocKey,:DocLine,
+      :BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
+
+  Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+end if;`,
+    },
+    {
+      kind: "continue",
       label: "PO close คืนงบและอัปเดต remaining",
       ref: "NDBS_BUDGET_CONTROL.sql:2244-2308",
       snippet: `INSERT INTO "NDBS_BGC_OBPE"
@@ -943,6 +1070,7 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
   ],
   ap: [
     {
+      kind: "block",
       label: "A/P Invoice ไม่มีปีงบ | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:648-669",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -959,6 +1087,7 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
 End If;`,
     },
     {
+      kind: "block",
       label: "A/P Credit Memo ไม่มีปีงบ | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:672-692",
       snippet: `IF :object_type ='19' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -975,6 +1104,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "A/P Invoice ปีงบไม่ตรงรูปแบบ | Error 302",
       ref: "SBO_SP_TransactionNotification.sql:1064-1082",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -991,6 +1121,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "continue",
       label: "ผ่านแล้วแปลง Reserve เป็น Actual",
       ref: "NDBS_BUDGET_CONTROL.sql:1588-1640",
       snippet: `INSERT INTO "NDBS_BGC_OBPE"
@@ -1006,6 +1137,7 @@ VALUES
  :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);`,
     },
     {
+      kind: "block",
       label: "APCN project condition ใช้ OR",
       ref: "NDBS_BUDGET_CONTROL.sql:2014-2050",
       snippet: `IF IsCancelled = 'C' then
@@ -1024,6 +1156,7 @@ end if;`,
   ],
   je: [
     {
+      kind: "block",
       label: "ไม่มีปีงบ | Error 100",
       ref: "SBO_SP_TransactionNotification.sql:696-714",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -1040,6 +1173,7 @@ end if;`,
 End If;`,
     },
     {
+      kind: "block",
       label: "Budget Year ไม่ตรงรูปแบบ | Error 303",
       ref: "SBO_SP_TransactionNotification.sql:1086-1103",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
@@ -1055,6 +1189,7 @@ End If;`,
 End If;`,
     },
     {
+      kind: "continue",
       label: "ผ่านแล้วลง Actual ใน ledger",
       ref: "NDBS_BUDGET_CONTROL.sql:1248-1260",
       snippet: `INSERT INTO "NDBS_BGC_OBDE"
@@ -1070,6 +1205,7 @@ Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
   ],
   final: [
     {
+      kind: "continue",
       label: "ด่านต้นทางเรียก procedure ขั้นสุดท้าย",
       ref: "SBO_SP_TransactionNotification.sql:1105-1106",
       snippet: `if :error = 0 then
@@ -1083,6 +1219,7 @@ Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
 end if;`,
     },
     {
+      kind: "continue",
       label: "เข้าด่านคุมงบขั้นสุดท้ายแล้ว log ก่อน",
       ref: "NDBS_BUDGET_CONTROL.sql:483-489",
       snippet: `Insert Into NDBS_STORE_TABLE
@@ -1096,6 +1233,7 @@ if :error = 0 then
 end if;`,
     },
     {
+      kind: "continue",
       label: "เขียน movement ลง Department ledger",
       ref: "NDBS_BUDGET_CONTROL.sql:530-601",
       snippet: `INSERT INTO "NDBS_BGC_OBDE"
@@ -1107,6 +1245,7 @@ VALUES
 Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
     },
     {
+      kind: "block",
       label: "Project over budget | Error -32",
       ref: "NDBS_BUDGET_CONTROL.sql:1379-1416",
       snippet: `else
@@ -1115,6 +1254,7 @@ Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
 end if;`,
     },
     {
+      kind: "continue",
       label: "ปิดเอกสารแล้วคืนงบ",
       ref: "NDBS_BUDGET_CONTROL.sql:2244-2308",
       snippet: `INSERT INTO "NDBS_BGC_OBPE"
@@ -1130,6 +1270,7 @@ From NDBS_BGC_OBDE
 Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
     },
     {
+      kind: "continue",
       label: "ล้างแถว Amount = 0 ก่อนจบ",
       ref: "NDBS_BUDGET_CONTROL.sql:2313-2314",
       snippet: `DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
@@ -2283,11 +2424,16 @@ const workflowElements = {
   detailFrom: flowDetailFrom,
   detailTo: flowDetailTo,
   detailImpact: flowDetailImpact,
-  ruleCaption: flowRuleCaption,
-  detailRules: flowDetailRules,
+  blockRuleCaption: flowBlockRuleCaption,
+  continueRuleCaption: flowContinueRuleCaption,
+  detailBlockRules: flowDetailBlockRules,
+  detailContinueRules: flowDetailContinueRules,
+  blockCodeCaption: flowBlockCodeCaption,
+  continueCodeCaption: flowContinueCodeCaption,
+  detailBlockCodes: flowDetailBlockCodes,
+  detailContinueCodes: flowDetailContinueCodes,
   detailPass: flowDetailPass,
   detailNote: flowDetailNote,
-  detailCodes: flowDetailCodes,
 };
 
 const ndbsWorkflowElements = {
@@ -2319,6 +2465,14 @@ function renderCodeDropdownList(container, entries) {
 
   container.innerHTML = "";
 
+  if (!entries.length) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "code-dropdown-empty";
+    emptyState.textContent = "ช่วงนี้ไม่มีโค้ดแยกในกลุ่มนี้";
+    container.appendChild(emptyState);
+    return;
+  }
+
   entries.forEach((entry) => {
     const details = document.createElement("details");
     details.className = "code-dropdown";
@@ -2349,6 +2503,48 @@ function renderCodeDropdownList(container, entries) {
     snippetWrap.appendChild(snippet);
     details.append(summary, snippetWrap);
     container.appendChild(details);
+  });
+}
+
+function renderRuleCards(container, rules) {
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  rules.forEach((rule) => {
+    const card = document.createElement("article");
+    card.className = "flow-rule-card";
+
+    const head = document.createElement("div");
+    head.className = "flow-rule-head";
+
+    const title = document.createElement("strong");
+    title.className = "flow-rule-title";
+    title.textContent = rule.title;
+
+    const badge = document.createElement("span");
+    badge.className = "flow-rule-badge";
+    badge.textContent = rule.badge;
+
+    head.append(title, badge);
+
+    const copy = document.createElement("div");
+    copy.className = "flow-rule-copy";
+
+    const when = document.createElement("p");
+    when.innerHTML = `<strong>เมื่อ:</strong> ${rule.when}`;
+
+    const action = document.createElement("p");
+    action.innerHTML = `<strong>Store ทำ:</strong> ${rule.action}`;
+
+    const impact = document.createElement("p");
+    impact.innerHTML = `<strong>ผลต่อ flow:</strong> ${rule.impact}`;
+
+    copy.append(when, action, impact);
+    card.append(head, copy);
+    container.appendChild(card);
   });
 }
 
@@ -2420,41 +2616,24 @@ function renderFlowStage(stageKey, order, data, codeLibrary, elements, setActive
   }
 
   if (elements.detailRules) {
-    elements.detailRules.innerHTML = "";
+    renderRuleCards(elements.detailRules, stage.rules);
+  }
 
-    stage.rules.forEach((rule) => {
-      const card = document.createElement("article");
-      card.className = "flow-rule-card";
+  if (elements.detailBlockRules && elements.detailContinueRules) {
+    const blockRules = stage.rules.filter((rule) => rule.kind !== "continue");
+    const continueRules = stage.rules.filter((rule) => rule.kind === "continue");
 
-      const head = document.createElement("div");
-      head.className = "flow-rule-head";
+    if (elements.blockRuleCaption) {
+      elements.blockRuleCaption.textContent = stage.blockCaption || stage.caption;
+    }
 
-      const title = document.createElement("strong");
-      title.className = "flow-rule-title";
-      title.textContent = rule.title;
+    if (elements.continueRuleCaption) {
+      elements.continueRuleCaption.textContent =
+        stage.continueCaption || "เมื่อผ่านแล้ว store จะพา flow ไปต่ออย่างไร";
+    }
 
-      const badge = document.createElement("span");
-      badge.className = "flow-rule-badge";
-      badge.textContent = rule.badge;
-
-      head.append(title, badge);
-
-      const copy = document.createElement("div");
-      copy.className = "flow-rule-copy";
-
-      const when = document.createElement("p");
-      when.innerHTML = `<strong>เมื่อ:</strong> ${rule.when}`;
-
-      const action = document.createElement("p");
-      action.innerHTML = `<strong>Store ทำ:</strong> ${rule.action}`;
-
-      const impact = document.createElement("p");
-      impact.innerHTML = `<strong>ผลต่อ flow:</strong> ${rule.impact}`;
-
-      copy.append(when, action, impact);
-      card.append(head, copy);
-      elements.detailRules.appendChild(card);
-    });
+    renderRuleCards(elements.detailBlockRules, blockRules);
+    renderRuleCards(elements.detailContinueRules, continueRules);
   }
 
   if (elements.detailPass) {
@@ -2475,6 +2654,31 @@ function renderFlowStage(stageKey, order, data, codeLibrary, elements, setActive
       }));
 
     renderCodeDropdownList(elements.detailCodes, codeRefs);
+  }
+
+  if (elements.detailBlockCodes && elements.detailContinueCodes) {
+    const codeRefs =
+      codeLibrary[stageKey] ||
+      (stage.codes || []).map((item) => ({
+        label: item,
+        ref: item,
+        snippet: item,
+      }));
+    const blockCodeRefs = codeRefs.filter((entry) => entry.kind !== "continue");
+    const continueCodeRefs = codeRefs.filter((entry) => entry.kind === "continue");
+
+    if (elements.blockCodeCaption) {
+      elements.blockCodeCaption.textContent =
+        stage.blockCodeCaption || `กดดูโค้ดที่ทำให้ ${stage.title} หยุดในช่วงนี้`;
+    }
+
+    if (elements.continueCodeCaption) {
+      elements.continueCodeCaption.textContent =
+        stage.continueCodeCaption || `กดดูโค้ดที่พา ${stage.title} ไปต่อในช่วงนี้`;
+    }
+
+    renderCodeDropdownList(elements.detailBlockCodes, blockCodeRefs);
+    renderCodeDropdownList(elements.detailContinueCodes, continueCodeRefs);
   }
 
   if (elements.prevButton) {

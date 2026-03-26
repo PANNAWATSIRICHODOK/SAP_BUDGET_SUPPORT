@@ -11,7 +11,8 @@
   --radius-xl: 28px;
   --radius-lg: 20px;
   --radius-md: 14px;
-  --content-width: 1120px;
+  --frame-width: 1420px;
+  --content-width: 1480px;
 }
 
 *,
@@ -97,13 +98,9 @@ p {
   background: rgba(219, 226, 239, 0.95);
 }
 
-.frame,
-.slide {
-  width: min(calc(100% - 2rem), var(--content-width));
-  margin: 0 auto;
-}
-
 .frame {
+  width: min(calc(100% - 2rem), var(--frame-width));
+  margin: 0 auto;
   position: fixed;
   top: 1rem;
   left: 0;
@@ -125,6 +122,11 @@ p {
     box-shadow 220ms ease;
   transform: translateY(0);
   opacity: 1;
+}
+
+.slide {
+  width: min(calc(100% - 2rem), var(--content-width));
+  margin: 0 auto;
 }
 
 .frame.is-hidden {
@@ -185,7 +187,7 @@ p {
 
 .slide {
   display: grid;
-  min-height: auto;
+  min-height: calc(100vh - 7.2rem);
   padding: 0;
   scroll-margin-top: 6.8rem;
 }
@@ -197,6 +199,8 @@ p {
 .slide-content {
   display: grid;
   gap: 1.2rem;
+  min-height: calc(100vh - 7.2rem);
+  align-content: start;
 }
 
 .eyebrow {
@@ -644,29 +648,10 @@ p {
     background 180ms ease;
 }
 
-.flow-chip::after {
-  content: "";
-  position: absolute;
-  left: 0.85rem;
-  right: 0.85rem;
-  bottom: 0.55rem;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(63, 114, 175, 0.7), rgba(17, 45, 78, 0.9));
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 220ms ease;
-}
-
 .flow-chip:hover,
 .flow-chip:focus-visible {
   transform: translateY(-2px);
   border-color: rgba(63, 114, 175, 0.28);
-}
-
-.flow-chip.is-complete::after,
-.flow-chip.is-active::after {
-  transform: scaleX(1);
 }
 
 .flow-chip.is-complete {
@@ -830,6 +815,18 @@ p {
   margin-top: 0.95rem;
 }
 
+.flow-rule-groups,
+.flow-code-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.flow-rule-group,
+.flow-code-group {
+  display: grid;
+  gap: 0.2rem;
+}
+
 .flow-rule-card {
   position: relative;
   display: grid;
@@ -918,6 +915,15 @@ p {
   display: grid;
   gap: 0.7rem;
   margin-top: 0.9rem;
+}
+
+.code-dropdown-empty {
+  padding: 0.9rem 1rem;
+  border: 1px dashed rgba(17, 45, 78, 0.16);
+  border-radius: 16px;
+  background: rgba(249, 247, 247, 0.78);
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .code-dropdown {
@@ -1040,15 +1046,15 @@ p {
 }
 
 @media (max-width: 720px) {
-  .frame,
-  .slide {
-    width: min(calc(100% - 1rem), var(--content-width));
-  }
-
   .frame {
+    width: min(calc(100% - 1rem), var(--frame-width));
     border-radius: 20px;
     align-items: start;
     flex-direction: column;
+  }
+
+  .slide {
+    width: min(calc(100% - 1rem), var(--content-width));
   }
 
   .frame-nav {

@@ -138,15 +138,15 @@
                 <article class="summary-band overview-summary-band">
                   <strong>เอกสารแต่ละตัวไปทำอะไรกับงบหลังบ้าน</strong>
                   <p class="summary-note">
-                    ส่วนนี้อธิบายตาม flow ปัจจุบันจาก SQL ทั้ง runtime และ rebuild ว่าเอกสารแต่ละชนิดทำให้ระบบกันงบ ใช้งบ คืนงบ หรือคำนวณยอดใหม่อย่างไร
+                    ส่วนนี้เป็นเวอร์ชันผสมระหว่างคำอธิบายแบบสั้นที่เคยใช้ตอนเพิ่ม <code>NDBS_BUDGET_CONTROL</code> กับรายละเอียดจาก SQL ปัจจุบัน เพื่อให้ผู้ใช้งาน SAP B1 เข้าใจง่าย แต่ยังไม่เสียภาพจริงของระบบ
                   </p>
 
                   <div class="backend-role-grid">
                     <article class="backend-role-card">
                       <h2>Draft</h2>
-                      <p><strong>หน้าที่หลัก:</strong> กันเอกสารที่ข้อมูลยังไม่พร้อม</p>
-                      <p>Draft ถูกใช้เป็นด่านต้นทางสำหรับเช็กฝ่าย ปีงบ และ budget setup ก่อนให้เกิดเอกสารจริง</p>
-                      <p>ตามโค้ดปัจจุบัน Draft ยังไม่เขียน movement ลง ledger และยังไม่ขยับยอดงบจริง</p>
+                      <p><strong>หน้าที่หลัก:</strong> เช็กความพร้อมก่อนออกเอกสารจริง</p>
+                      <p>Draft ใช้ตรวจว่าระบุฝ่ายหรือโครงการ ปีงบ และข้อมูลงบครบแล้วหรือยัง ก่อนจะนำ draft ไปเปิดเป็นเอกสารจริง</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า Draft ยังไม่กระทบงบเลย ยังไม่จองงบ ยังไม่ใช้จริง และยังไม่คืนงบ เป็นเพียงด่านตรวจข้อมูลเท่านั้น</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ draft</p>
                         <div class="code-dropdown-list" data-backend-code="draft"></div>
@@ -155,9 +155,9 @@
 
                     <article class="backend-role-card">
                       <h2>PR</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เป็นคำขอใช้งบต้นทาง</p>
-                      <p>ในฝั่งตรวจต้นทาง PR จะถูกเช็กความครบของข้อมูลก่อน และในโค้ดยังมี procedure แยกสำหรับลงรายการกันงบของ PR ทั้งตามฝ่ายและตามโครงการ</p>
-                      <p>แต่จาก flow ปัจจุบัน route เข้า procedure นี้ยังมีจุดที่ต้องแก้ จึงควรมองว่า PR ยังอยู่ฝั่ง pre-check เป็นหลักใน runtime ตอนนี้</p>
+                      <p><strong>หน้าที่หลัก:</strong> เป็นคำขอใช้งบก่อนออก PO</p>
+                      <p>PR ช่วยให้ระบบรู้ว่าหน่วยงานหรือโครงการนี้กำลังจะขอใช้งบอะไร และจะเช็กว่าข้อมูลที่จำเป็นต่อการคุมงบครบหรือยัง</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า PR คือคำขอใช้เงินต้นทาง ยังไม่ใช่การใช้เงินจริงแบบ PO และจาก SQL ปัจจุบัน route ที่จะให้ PR ไปกระทบงบต่อยังต้องแก้ก่อนใช้งานจริง</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ PR</p>
                         <div class="code-dropdown-list" data-backend-code="pr"></div>
@@ -166,9 +166,10 @@
 
                     <article class="backend-role-card">
                       <h2>PO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> กันวงเงินไว้ก่อนซื้อจริง</p>
-                      <p>เมื่อบันทึก PO ระบบจะสร้างรายการกันงบให้ฝ่ายหรือโครงการนั้นทันที เพื่อกันยอดไว้ก่อนรับของหรือรับใบแจ้งหนี้</p>
-                      <p>ถ้าแก้ไขหรือยกเลิก ระบบจะย้อนรายการกันงบเดิมก่อน และถ้าปิดเอกสารหรือปิดบรรทัด ระบบจะคืนส่วนของงบที่ยังไม่ใช้กลับเข้าไปอีกครั้ง</p>
+                      <p><strong>หน้าที่หลัก:</strong> จองวงเงินไว้ก่อนซื้อจริง</p>
+                      <p>เมื่อบันทึก PO ระบบจะจองวงเงินของฝ่ายหรือโครงการที่ระบุไว้ทันที เพื่อไม่ให้วงเงินก้อนเดียวกันถูกใช้ซ้ำโดยเอกสารอื่น</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า PO ยังไม่ใช่ค่าใช้จ่ายจริง แต่เป็นสถานะ “กันไว้รอซื้อ” และถ้าเป็นรายการของโครงการที่วงเงินไม่พอ เอกสารอาจไม่ผ่านจนกว่าจะมีงบเพียงพอ</p>
+                      <p>ถ้าแก้ไข ยกเลิก หรือปิด PO ระบบจะย้อนรายการเดิมและคืนวงเงินส่วนที่ยังไม่ใช้กลับมาให้อัตโนมัติ</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ PO</p>
                         <div class="code-dropdown-list" data-backend-code="po"></div>
@@ -177,9 +178,10 @@
 
                     <article class="backend-role-card">
                       <h2>GRPO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เปลี่ยนงบที่กันไว้ให้กลายเป็นการใช้จริง</p>
-                      <p>เมื่อรับของจริง ระบบจะหักยอดที่กันไว้จาก PO แล้วสร้างยอดใช้จริงขึ้นมาตามมูลค่าที่รับ</p>
-                      <p>ถ้าเอกสารถูกยกเลิก ระบบจะ mark movement ที่เกี่ยวข้องเป็นยกเลิกและคำนวณยอดคงเหลือใหม่ให้สอดคล้องกับสถานะล่าสุด</p>
+                      <p><strong>หน้าที่หลัก:</strong> เปลี่ยนจากจองงบเป็นเริ่มใช้จริง</p>
+                      <p>เมื่อรับของจาก PO ระบบจะย้ายยอดจากส่วนที่จองไว้ ไปเป็นยอดที่ถือว่าเริ่มใช้จริงตามมูลค่าของที่รับเข้า</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า GRPO คือจุดที่งบขยับจาก “จองไว้” ไปเป็น “ใช้จริง” เพราะมีการรับของเข้ามาแล้ว</p>
+                      <p>ถ้ายกเลิกการรับของ ระบบจะย้อนผลของส่วนนี้กลับและคำนวณยอดคงเหลือใหม่ให้อีกครั้ง</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ GRPO</p>
                         <div class="code-dropdown-list" data-backend-code="grpo"></div>
@@ -188,9 +190,10 @@
 
                     <article class="backend-role-card">
                       <h2>A/P Invoice</h2>
-                      <p><strong>หน้าที่หลัก:</strong> รับรู้ค่าใช้จ่ายจริง</p>
-                      <p>ถ้าอ้างจาก PO ระบบจะปิดยอดที่กันไว้แล้วลงยอดใช้จริง ถ้าอ้างจาก GRPO ระบบจะต่อยอดจากฝั่งรับของ และถ้าไม่มีฐานก็สามารถลงยอดใช้จริงตรงได้</p>
-                      <p>เมื่อยกเลิก invoice ระบบจะเปลี่ยนสถานะ movement เดิมและคำนวณยอดคงเหลือใหม่อัตโนมัติ</p>
+                      <p><strong>หน้าที่หลัก:</strong> ยืนยันค่าใช้จ่ายจริงทางเจ้าหนี้</p>
+                      <p>เมื่อบันทึก A/P Invoice ระบบจะถือว่ารายการนั้นเป็นค่าใช้จ่ายจริงแล้ว ไม่ว่าจะอ้างจาก PO, GRPO หรือบันทึกตรงตามเงื่อนไขที่โค้ดรองรับ</p>
+                      <p>ถ้าอ้างจาก PO หรือ GRPO ระบบจะเปลี่ยนยอดที่จองไว้หรือยอดที่เริ่มใช้จริง ให้กลายเป็นค่าใช้จ่ายจริงตามยอดเจ้าหนี้ที่บันทึก</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า A/P Invoice คือจุดที่ค่าใช้จ่ายถูกยืนยันชัดเจนในงบ และถ้ายกเลิกเอกสาร ระบบจะคืนผลกระทบของงบและคำนวณยอดใหม่ให้อัตโนมัติ</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ A/P Invoice</p>
                         <div class="code-dropdown-list" data-backend-code="apinvoice"></div>
@@ -199,9 +202,9 @@
 
                     <article class="backend-role-card">
                       <h2>Goods Return</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ปรับยอดใช้จริงเมื่อมีการคืนของ</p>
-                      <p>เอกสารคืนของจะสร้างผลกระทบฝั่งใช้จริง เพื่อให้ยอดงบสะท้อนว่าของที่รับมาไม่ได้ถูกใช้ตามจำนวนเดิม</p>
-                      <p>จุดนี้ช่วยให้ยอด actual สอดคล้องกับสถานะหลังคืนสินค้า ทั้งฝั่ง department และ project</p>
+                      <p><strong>หน้าที่หลัก:</strong> ลดการใช้จริงเมื่อมีการคืนของ</p>
+                      <p>เมื่อมีการคืนของ ระบบจะปรับยอดใช้จริงให้ลดลงตามปริมาณและมูลค่าที่คืนกลับ เพื่อไม่ให้ใช้งบค้างเกินจากของที่ถือไว้จริง</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า Goods Return ช่วยดึงยอดใช้งบกลับลงบางส่วน ทำให้งบสะท้อนสถานะของการรับคืนสินค้าได้ถูกต้องขึ้น</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ Goods Return</p>
                         <div class="code-dropdown-list" data-backend-code="goodsreturn"></div>
@@ -210,9 +213,10 @@
 
                     <article class="backend-role-card">
                       <h2>A/P Credit Memo</h2>
-                      <p><strong>หน้าที่หลัก:</strong> คืนงบหรือหักกลับค่าใช้จ่ายที่เคยรับรู้</p>
-                      <p>ถ้ามีเอกสารอ้างอิง ระบบจะย้อนผลจากรายการเดิมก่อน แล้วค่อยลงรายการกลับงบตามมูลค่าที่คืน</p>
-                      <p>ถ้าไม่มีเอกสารฐาน ระบบจะลงรายการติดลบตรงเพื่อคืนผลกระทบของงบจากรายการนั้นโดยตรง</p>
+                      <p><strong>หน้าที่หลัก:</strong> คืนค่าใช้จ่ายหรือคืนงบ</p>
+                      <p>เมื่อมี A/P Credit Memo ระบบจะมองว่าเราได้รับการลดหนี้หรือย้อนค่าใช้จ่ายบางส่วนกลับมา จึงต้องคืนผลกระทบของงบที่เคยรับรู้ไว้</p>
+                      <p>ถ้ามีเอกสารอ้างอิง ระบบจะย้อนผลจากรายการเดิมก่อน แต่ถ้าไม่มี ระบบจะคืนผลกระทบของงบจากเอกสารนั้นโดยตรง</p>
+                      <p>สำหรับผู้ใช้ SAP B1 ให้มองว่า A/P Credit Memo คือเอกสารที่ดึงค่าใช้จ่ายกลับ และทำให้งบถูกคืนตามรายการที่เคยรับรู้ไปแล้ว</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ A/P Credit Memo</p>
                         <div class="code-dropdown-list" data-backend-code="apcreditmemo"></div>
@@ -221,9 +225,10 @@
 
                     <article class="backend-role-card">
                       <h2>JE</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ตัดงบตรงจากบัญชี</p>
-                      <p>JE ไม่ได้เริ่มจากการกันวงเงินแบบ PO แต่จะลงผลกระทบเป็นยอดใช้จริงทันทีหลังผ่านการตรวจต้นทาง</p>
-                      <p>ถ้ามีการ update ระบบจะปิด movement เดิมของบรรทัดนั้นก่อน แล้วสร้าง movement ใหม่เพื่อให้ยอดคงเหลืออัปเดตตามรายการล่าสุด</p>
+                      <p><strong>หน้าที่หลัก:</strong> กระทบงบตรงจากรายการบัญชี</p>
+                      <p>JE ไม่ผ่านขั้นจองวงเงินแบบ PO แต่ถ้าผ่านการตรวจข้อมูลแล้ว ระบบจะถือว่ารายการนั้นกระทบงบจริงทันที</p>
+                      <p>เหมาะกับรายการที่เข้าทางบัญชีโดยตรงและต้องสะท้อนผลในงบทันที โดยไม่ต้องรอผ่านเอกสารจัดซื้อก่อน</p>
+                      <p>ถ้ามีการแก้ไข JE ระบบจะอัปเดตผลกระทบของงบตามข้อมูลล่าสุดของรายการนั้น</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ JE</p>
                         <div class="code-dropdown-list" data-backend-code="je"></div>
@@ -232,9 +237,10 @@
 
                     <article class="backend-role-card">
                       <h2>Rebuild ย้อนหลัง</h2>
-                      <p><strong>หน้าที่หลัก:</strong> สร้าง movement งบจากเอกสารเดิมย้อนหลัง</p>
-                      <p>procedure rebuild จะไล่เอกสารหลายเส้นทาง เช่น PO, GRPO, A/P Invoice, Return, A/P Credit Memo และ JE เพื่อเติม ledger และคำนวณยอดใหม่ทั้งชุด</p>
-                      <p>เส้นนี้ไม่ใช่การทำงานปกติระหว่างวัน แต่ใช้ตอนซ่อมหรือสร้างระบบงบย้อนหลัง และปัจจุบัน PR ใน rebuild ยังไม่ได้เปิดใช้งานจริง</p>
+                      <p><strong>หน้าที่หลัก:</strong> สร้างผลกระทบงบย้อนหลังจากเอกสารเดิม</p>
+                      <p>ใช้เมื่อทีมงานต้องการให้ข้อมูลงบในระบบกลับมาตรงกับเอกสารที่เคยเกิดไปแล้ว เช่น ตอนเริ่มใช้ระบบงบ หรือเวลาซ่อมข้อมูลย้อนหลัง</p>
+                      <p>เส้นนี้จะไล่เอกสารหลายประเภท เช่น PO, GRPO, A/P Invoice, Return, A/P Credit Memo และ JE เพื่อสร้างผลกระทบงบย้อนหลังและคำนวณยอดใหม่ทั้งชุด</p>
+                      <p>เส้นนี้ไม่ใช่งานประจำวันที่ผู้ใช้ SAP B1 ทำทุกวัน แต่เป็นเครื่องมือซ่อมระบบงบ และตอนนี้ PR ในเส้นนี้ยังไม่ได้เปิดใช้งานจริง</p>
                       <div class="backend-role-sql">
                         <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ rebuild</p>
                         <div class="code-dropdown-list" data-backend-code="rebuild"></div>
@@ -530,11 +536,22 @@
 
                 <div class="flow-detail-body">
                   <div class="flow-blocks-panel">
-                    <div class="flow-panel-head">
-                      <span class="flow-meta-label">Store Rules</span>
-                      <p id="flow-rule-caption">4 จุดที่ store ใช้ block draft</p>
+                    <div class="flow-rule-groups">
+                      <div class="flow-rule-group">
+                        <div class="flow-panel-head">
+                          <span class="flow-meta-label">Store Rules ที่ทำให้ Block</span>
+                          <p id="flow-block-rule-caption">4 จุดที่ store ใช้ block draft</p>
+                        </div>
+                        <div class="flow-rule-stack" id="flow-detail-block-rules"></div>
+                      </div>
+                      <div class="flow-rule-group">
+                        <div class="flow-panel-head">
+                          <span class="flow-meta-label">Store Rules ที่ทำงานต่อ</span>
+                          <p id="flow-continue-rule-caption">เมื่อผ่านแล้ว store จะพา flow ไปต่ออย่างไร</p>
+                        </div>
+                        <div class="flow-rule-stack" id="flow-detail-continue-rules"></div>
+                      </div>
                     </div>
-                    <div class="flow-rule-stack" id="flow-detail-rules"></div>
                   </div>
                   <div class="flow-side-stack">
                     <article class="flow-side-card">
@@ -548,9 +565,22 @@
                       <p id="flow-detail-note">store นี้ทำหน้าที่อนุญาตหรือไม่อนุญาตให้บันทึกเอกสารในขั้นนั้น</p>
                     </article>
                     <div class="flow-code-panel">
-                      <span class="flow-meta-label">Code refs / SQL</span>
-                      <p class="flow-code-hint">กดเพื่อดูทั้งโค้ดด่านต้นทางและด่านคุมงบขั้นสุดท้ายของช่วงนั้น</p>
-                      <div class="code-dropdown-list" id="flow-detail-codes"></div>
+                      <div class="flow-code-groups">
+                        <div class="flow-code-group">
+                          <div class="flow-panel-head">
+                            <span class="flow-meta-label">Code refs / SQL ที่ทำให้ Block</span>
+                            <p id="flow-block-code-caption">กดดู query ที่ทำให้ flow หยุดในช่วงนี้</p>
+                          </div>
+                          <div class="code-dropdown-list" id="flow-detail-block-codes"></div>
+                        </div>
+                        <div class="flow-code-group">
+                          <div class="flow-panel-head">
+                            <span class="flow-meta-label">Code refs / SQL ที่ทำงานต่อ</span>
+                            <p id="flow-continue-code-caption">กดดู query ที่พา flow ไปต่อในช่วงนี้</p>
+                          </div>
+                          <div class="code-dropdown-list" id="flow-detail-continue-codes"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
