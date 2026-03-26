@@ -1,11 +1,37 @@
 const frame = document.querySelector(".frame");
 const overviewTabs = [...document.querySelectorAll(".overview-tab")];
 const overviewTabPanels = [...document.querySelectorAll(".overview-tab-panel")];
-const workflowSection = document.querySelector("#workflow");
+const backendRoleCodeTargets = [...document.querySelectorAll("[data-backend-code]")];
+const developerCodeTargets = [...document.querySelectorAll("[data-developer-code]")];
+const documentWorkflowSection = document.querySelector("#document-workflow");
 const ndbsWorkflowSection = document.querySelector("#ndbs-workflow");
+const systemWorkflowSection = document.querySelector("#system-workflow");
+const systemFlowMap = document.querySelector("#system-flow-map");
+const flowMap = document.querySelector("#flow-map");
+const ndbsFlowMap = document.querySelector("#ndbs-flow-map");
 
-const flowChips = workflowSection ? [...workflowSection.querySelectorAll(".flow-chip")] : [];
-const flowConnectors = workflowSection ? [...workflowSection.querySelectorAll(".flow-connector")] : [];
+const systemFlowChips = systemFlowMap ? [...systemFlowMap.querySelectorAll(".flow-chip")] : [];
+const systemFlowConnectors = systemFlowMap ? [...systemFlowMap.querySelectorAll(".flow-connector")] : [];
+const systemFlowDetail = document.querySelector("#system-flow-detail");
+const systemFlowStagePosition = document.querySelector("#system-flow-stage-position");
+const systemFlowStageCaption = document.querySelector("#system-flow-stage-caption");
+const systemFlowPrevButton = document.querySelector("#system-flow-prev");
+const systemFlowNextButton = document.querySelector("#system-flow-next");
+const systemFlowDetailKicker = document.querySelector("#system-flow-detail-kicker");
+const systemFlowDetailTitle = document.querySelector("#system-flow-detail-title");
+const systemFlowDetailSummary = document.querySelector("#system-flow-detail-summary");
+const systemFlowDetailTags = document.querySelector("#system-flow-detail-tags");
+const systemFlowDetailFrom = document.querySelector("#system-flow-detail-from");
+const systemFlowDetailTo = document.querySelector("#system-flow-detail-to");
+const systemFlowDetailImpact = document.querySelector("#system-flow-detail-impact");
+const systemFlowRuleCaption = document.querySelector("#system-flow-rule-caption");
+const systemFlowDetailRules = document.querySelector("#system-flow-detail-rules");
+const systemFlowDetailPass = document.querySelector("#system-flow-detail-pass");
+const systemFlowDetailNote = document.querySelector("#system-flow-detail-note");
+const systemFlowDetailCodes = document.querySelector("#system-flow-detail-codes");
+
+const flowChips = flowMap ? [...flowMap.querySelectorAll(".flow-chip")] : [];
+const flowConnectors = flowMap ? [...flowMap.querySelectorAll(".flow-connector")] : [];
 const flowDetail = document.querySelector("#flow-detail");
 const flowStagePosition = document.querySelector("#flow-stage-position");
 const flowStageCaption = document.querySelector("#flow-stage-caption");
@@ -24,8 +50,8 @@ const flowDetailPass = document.querySelector("#flow-detail-pass");
 const flowDetailNote = document.querySelector("#flow-detail-note");
 const flowDetailCodes = document.querySelector("#flow-detail-codes");
 
-const ndbsFlowChips = ndbsWorkflowSection ? [...ndbsWorkflowSection.querySelectorAll(".flow-chip")] : [];
-const ndbsFlowConnectors = ndbsWorkflowSection ? [...ndbsWorkflowSection.querySelectorAll(".flow-connector")] : [];
+const ndbsFlowChips = ndbsFlowMap ? [...ndbsFlowMap.querySelectorAll(".flow-chip")] : [];
+const ndbsFlowConnectors = ndbsFlowMap ? [...ndbsFlowMap.querySelectorAll(".flow-connector")] : [];
 const ndbsFlowDetail = document.querySelector("#ndbs-flow-detail");
 const ndbsFlowStagePosition = document.querySelector("#ndbs-flow-stage-position");
 const ndbsFlowStageCaption = document.querySelector("#ndbs-flow-stage-caption");
@@ -46,9 +72,192 @@ const ndbsFlowDetailCodes = document.querySelector("#ndbs-flow-detail-codes");
 
 const workflowOrder = ["draft", "pr", "po", "ap", "je", "final"];
 const ndbsWorkflowOrder = ["entry", "route", "reserve", "actual", "reverse", "finalize"];
+const systemWorkflowOrder = ["engine", "update", "recalc", "writeback", "commit"];
+let activeSystemWorkflowStage = systemWorkflowOrder[0];
 let activeWorkflowStage = workflowOrder[0];
 let activeNdbsWorkflowStage = ndbsWorkflowOrder[0];
 let lastScrollTop = 0;
+
+const systemWorkflowData = {
+  engine: {
+    status: "Continue from Budget Engine",
+    kicker: "Stage 1",
+    title: "Finalize จาก Budget Engine",
+    summary:
+      "ส่วนนี้เริ่มต่อจาก Budget Engine โดยตรง หลัง route ของเอกสารจบแล้ว ระบบจะ cleanup movement ที่ต้องปิด และเตรียมส่งต่อไปยังตัวคำนวณยอดคงเหลือ",
+    from: "Budget Engine",
+    to: "NDBS_UpdateBudgetAmount",
+    impact: "ถ้าจุดนี้ไม่วิ่งต่อ movement อาจถูกเขียนแล้ว แต่ยอดคงเหลือของงบจะยังไม่ sync ตามเอกสารล่าสุด",
+    pass: "ทุกเส้นทางหลักจะพา budgetgroup, year และ department หรือ project ไปให้ NDBS_UpdateBudgetAmount คำนวณต่อ",
+    note: "นี่คือจุดต่อจาก section Budget Engine โดยตรง ไม่ได้ย้อนกลับไปเริ่มที่ SAP Event เหมือนโครงเดิม",
+    caption: "3 เรื่องที่เกิดขึ้นทันทีหลัง Budget Engine จบ route ของเอกสาร",
+    tags: ["ต่อจาก Budget Engine", "Finalize", "ส่งต่อยอดคงเหลือ"],
+    rules: [
+      {
+        title: "เรียกตัวคำนวณหลัง movement เปลี่ยน",
+        badge: "Call helper",
+        when: "หลัง reserve, actual, reverse, cancel หรือ close ของเอกสารถูกเขียนลง ledger แล้ว",
+        action: "engine จะเรียก NDBS_UpdateBudgetAmount พร้อม budget group, ปีงบ และรหัสฝ่ายหรือโครงการ",
+        impact: "ยอดคงเหลือจะไม่ค้างอยู่ที่ movement อย่างเดียว แต่ถูกส่งไปคำนวณต่อทันที",
+      },
+      {
+        title: "cleanup movement ที่ไม่ควรค้าง",
+        badge: "Cleanup",
+        when: "ปิด route ของเอกสารหรือปิด PO แล้วมี movement ที่หักกลับจนเหลือ 0",
+        action: "engine ลบแถวที่ Amount = 0 ออกจาก ledger ก่อนปล่อยงานต่อ",
+        impact: "ledger จะไม่ค้างแถวศูนย์ที่รบกวนการอ่านและคำนวณยอดรอบถัดไป",
+      },
+      {
+        title: "runtime และ rebuild ลงมาจุดเดียวกัน",
+        badge: "Shared path",
+        when: "ไม่ว่าจะมาจาก flow ปกติหรือ flow สร้างย้อนหลัง",
+        action: "สุดท้ายทุกเส้นจะกลับมาพึ่งตัวคำนวณยอดคงเหลือตัวเดียวกัน",
+        impact: "จุดนี้เป็นคอขวดสำคัญของความถูกต้องของงบทั้งระบบ",
+      },
+    ],
+  },
+  update: {
+    status: "Update Helper",
+    kicker: "Stage 2",
+    title: "เข้า NDBS_UpdateBudgetAmount",
+    summary:
+      "ชั้นนี้รับค่าที่ Budget Engine ส่งมา แล้วแยกว่าจะคำนวณฝั่ง department หรือ project ตาม budgettype ที่ถูกส่งเข้า procedure",
+    from: "Budget Engine หรือ NDBS_BUDGET_PR",
+    to: "ชั้นคำนวณยอด reserve และ actual",
+    impact: "ถ้าค่า budgetgroup, year หรือ typecode ผิด จะทำให้ไปอัปเดตงบผิดก้อนหรือไม่โดนก้อนที่ควรโดน",
+    pass: "procedure รู้ทันทีว่าควรอ่าน ledger ฝั่ง OBDE หรือ OBPE เพื่อรวมยอดใหม่",
+    note: "4 input หลักของ procedure นี้คือ budgetgroup, budgetyear, budgettype และ budgettypecode",
+    caption: "3 หน้าที่หลักของ helper ตัวนี้ก่อนเริ่มรวมยอดจริง",
+    tags: ["Helper", "Department / Project", "shared service"],
+    rules: [
+      {
+        title: "รับ key ของงบที่ต้องคำนวณ",
+        badge: "4 inputs",
+        when: "Budget Engine ส่งค่าหลัง movement ของเอกสารเปลี่ยน",
+        action: "procedure รับ budget group, budget year, ประเภทงบ และรหัสฝ่ายหรือโครงการที่ต้องอัปเดต",
+        impact: "ระบบคำนวณเฉพาะก้อนงบที่ได้รับผลจาก transaction นั้น ไม่ต้องไล่ทั้งระบบทุกครั้ง",
+      },
+      {
+        title: "เลือกทาง department หรือ project",
+        badge: "D / P",
+        when: "budgettype ถูกส่งมาเป็น D หรือ P",
+        action: "ถ้าเป็น D จะอ่าน OBDE กับ BDPL ถ้าเป็น P จะอ่าน OBPE กับ BPJL",
+        impact: "งบของฝ่ายและงบของโครงการจึงถูกคำนวณแยกกันชัดเจน",
+      },
+      {
+        title: "เป็น helper กลางของหลาย procedure",
+        badge: "Shared entry",
+        when: "ถูกเรียกจาก Budget Engine, PR route หรือ rebuild",
+        action: "ใช้ procedure เดียวกันเพื่อจบงานเรื่องยอดคงเหลือ",
+        impact: "ถ้าจุดนี้มี bug ผลจะกระทบทั้ง runtime และ rebuild พร้อมกัน",
+      },
+    ],
+  },
+  recalc: {
+    status: "Recalculate Totals",
+    kicker: "Stage 3",
+    title: "รวมยอด Reserve และ Actual จาก Ledger",
+    summary:
+      "เมื่อเข้า helper แล้ว ระบบจะรวมยอดที่กันไว้และยอดที่ใช้จริงจาก ledger โดยตัด movement ที่ถูกยกเลิกออกจากการคำนวณ",
+    from: "NDBS_UpdateBudgetAmount",
+    to: "ชั้นเขียนกลับ budget master",
+    impact: "ถ้ายอดรวมสองก้อนนี้ผิด ยอดคงเหลือที่ผู้ใช้เห็นจะเพี้ยนทันที แม้ movement แต่ละแถวจะถูกต้อง",
+    pass: "ได้ยอด reserve และ actual ล่าสุดของก้อนงบนั้น เพื่อใช้เขียนกลับไปยัง master detail",
+    note: "ระบบอ่านจาก OBDE เมื่อเป็นฝ่าย และจาก OBPE เมื่อเป็นโครงการ โดยใช้ BudgetStatus <> 'C' เป็นตัวกรอง",
+    caption: "3 เรื่องที่ helper ใช้ตัดสินยอดล่าสุดของงบ",
+    tags: ["Reserve", "Actual", "Ledger sums"],
+    rules: [
+      {
+        title: "รวมยอดที่กันไว้",
+        badge: "BudgetType R",
+        when: "ต้องการรู้ว่าก้อนงบนั้นมีวงเงินถูกกันอยู่เท่าไร",
+        action: "SUM Amount ของ movement ที่เป็น reserve และยังไม่ถูกยกเลิก",
+        impact: "ระบบเห็นว่ายอดใดถูกจองไว้ก่อนใช้จริงแล้ว",
+      },
+      {
+        title: "รวมยอดที่ใช้จริง",
+        badge: "BudgetType A",
+        when: "ต้องการรู้ว่าก้อนงบนั้นถูกใช้จริงไปแล้วเท่าไร",
+        action: "SUM Amount ของ movement ที่เป็น actual และยังไม่ถูกยกเลิก",
+        impact: "ระบบเห็นการใช้จริงของงบหลัง PO, GRPO, AP, APCN หรือ JE",
+      },
+      {
+        title: "กันค่า null ไม่ให้เพี้ยน",
+        badge: "Null safe",
+        when: "ไม่พบ movement บางประเภทในก้อนงบนั้น",
+        action: "ตั้ง NetReserve หรือ NetActual เป็น 0 ก่อนคำนวณต่อ",
+        impact: "งบที่ยังไม่มี movement บางด้านจะไม่กลายเป็นค่า null และทำให้ยอดคงเหลือเพี้ยน",
+      },
+    ],
+  },
+  writeback: {
+    status: "Write Back to Budget Master",
+    kicker: "Stage 4",
+    title: "เขียนยอดกลับ Budget Master",
+    summary:
+      "หลังรวมยอดเสร็จ ระบบจะเขียนยอดกันงบ ยอดใช้จริง ยอดรวม และยอดคงเหลือกลับไปที่ budget master detail ของฝ่ายหรือโครงการนั้นทันที",
+    from: "ยอด reserve และ actual ล่าสุด",
+    to: "BDPL / BPJL และแถวที่ยังไม่เคยมี U_BudgetRem",
+    impact: "นี่คือจุดที่ผู้ใช้ปลายทางจะเห็นยอดคงเหลือบนหน้าจอ ถ้าเขียนผิด ความเข้าใจงบของทั้งองค์กรจะผิดตาม",
+    pass: "master detail ถูกอัปเดตแล้ว และ helper จะ sync แถวที่ U_BudgetRem ยังเป็น null เพิ่มเติมก่อนคืนผล",
+    note: "ในไฟล์ปัจจุบันมี loop ปิดท้ายสำหรับไล่ซ่อมแถวที่ U_BudgetRem ยังเป็น null ทั้งฝั่ง department และ project",
+    caption: "3 งานที่ชั้นนี้ทำก่อนคืนผลออกจาก helper",
+    tags: ["Write back", "Budget Master", "Remaining"],
+    rules: [
+      {
+        title: "อัปเดตงบของฝ่าย",
+        badge: "BDPL",
+        when: "budgettype เป็น D",
+        action: "เขียน U_BudgetRes, U_BudgetAct, U_BudgetBal และ U_BudgetRem กลับไปยังตาราง BDPL ของฝ่ายนั้น",
+        impact: "ผู้ใช้ฝั่ง department เห็นยอดงบที่ sync กับ movement ล่าสุด",
+      },
+      {
+        title: "อัปเดตงบของโครงการ",
+        badge: "BPJL",
+        when: "budgettype เป็น P",
+        action: "เขียน 4 ค่าหลักกลับไปยังตาราง BPJL ของโครงการนั้น",
+        impact: "งบโครงการแสดงยอดคงเหลือตามการจอง ใช้จริง หรือคืนงบล่าสุด",
+      },
+      {
+        title: "ไล่ sync แถวที่ยังไม่มี U_BudgetRem",
+        badge: "Repair loop",
+        when: "ยังมี master detail บางแถวที่ U_BudgetRem เป็น null",
+        action: "helper จะวนซ้ำคำนวณและอัปเดตแถวนั้นให้ครบทั้งฝั่ง department และ project",
+        impact: "ช่วยให้ข้อมูลเก่าที่ไม่สมบูรณ์ถูกดึงกลับมาอยู่ในรูปแบบเดียวกับแถวปกติ",
+      },
+    ],
+  },
+  commit: {
+    status: "Return to SAP",
+    kicker: "Stage 5",
+    title: "ส่งผลกลับ SAP แล้วจบ Transaction",
+    summary:
+      "เมื่อคำนวณและเขียนกลับเสร็จแล้ว ระบบจะคืนค่า error และข้อความกลับไปให้ SAP จากนั้น SAP จะตัดสินใจเองว่าจะบันทึกเอกสารหรือ block ผู้ใช้ไว้",
+    from: "Budget master ที่อัปเดตแล้ว",
+    to: "Document saved หรือ blocked in SAP",
+    impact: "นี่คือจุดสุดท้ายที่ผู้ใช้เห็นผลลัพธ์จริง ว่าเอกสารผ่าน budget control หรือถูกหยุดไว้ให้แก้ไข",
+    pass: "ถ้า error ยังเป็น 0 เอกสารถูกบันทึกพร้อมงบที่อัปเดตแล้ว ถ้ามี error SAP จะหยุด transaction ทันที",
+    note: "ในไฟล์ SQL ไม่มีคำสั่ง COMMIT ตรง ๆ เพราะ SAP B1 ใช้ค่าที่ procedure คืนกลับไปตัดสินใจเรื่องการบันทึก transaction",
+    caption: "2 ผลลัพธ์สุดท้ายหลัง helper คืนค่ากลับระบบ",
+    tags: ["Return", "Commit", "Block"],
+    rules: [
+      {
+        title: "คืนผลลัพธ์กลับจาก stored procedure",
+        badge: "error / message",
+        when: "Budget Engine และตัวคำนวณยอดทำงานครบแล้ว",
+        action: "Transaction Notification ส่งค่า error และ error_message กลับออกไปที่ SAP",
+        impact: "SAP ใช้ค่านี้เป็นคำตอบสุดท้ายว่าจะยอมให้เอกสารผ่านหรือไม่",
+      },
+      {
+        title: "SAP ตัดสินใจบันทึกหรือ block",
+        badge: "Save / Stop",
+        when: "ค่าที่คืนกลับมาเป็น 0 หรือไม่เป็น 0",
+        action: "ถ้าไม่มี error เอกสารถูกบันทึก ถ้ามี error ผู้ใช้จะเห็นข้อความและต้องกลับไปแก้ข้อมูล",
+        impact: "นี่คือปลายทางของ flow ทั้งระบบตั้งแต่เอกสารถูกตรวจจนงบถูกอัปเดต",
+      },
+    ],
+  },
+};
 
 const workflowData = {
   draft: {
@@ -100,14 +309,14 @@ const workflowData = {
     kicker: "Stage 2",
     title: "PR",
     summary:
-      "PR คือคำขอใช้เงินต้นทาง ด่านตรวจข้อมูลต้นทางจะเช็กความครบของข้อมูลและการมีงบรองรับก่อนให้ PR ผ่านไป approval และ PO",
+      "PR คือคำขอใช้เงินต้นทาง ด่านหน้าใน Transaction Notification จะเช็กความครบของข้อมูลก่อน และมี procedure แยกชื่อ NDBS_BUDGET_PR สำหรับลง movement ของ PR โดยเฉพาะ",
     from: "Draft หรือการเปิด PR ตรง",
     to: "Approval / PO",
     impact: "ถ้า PR ไม่ผ่าน จะหยุดที่คำขอและยังไม่มีฐานให้ PO อ้างอิงต่อ",
-    pass: "เมื่อผ่านด่านต้นทางแล้ว PR พร้อมเข้าสู่ approval และเป็นฐานให้ PO แต่ในชั้นคุมงบขั้นสุดท้ายยังควรตรวจซ้ำอีกครั้ง",
-    note: "ในด่านคุมงบขั้นสุดท้ายมี call ไป NDBS_BUDGET_PR แต่จากโค้ดปัจจุบัน branch นี้ดูเหมือนยัง unreachable เพราะ outer IF ไม่รวม object_type ของ PR",
-    caption: "4 จุด block ของ PR และ 1 ความเสี่ยงในด่านคุมงบขั้นสุดท้าย",
-    tags: ["ด่านตรวจข้อมูลต้นทาง", "ต้นทางขอใช้เงิน", "ก่อน PO"],
+    pass: "เมื่อผ่านด่านต้นทางแล้ว PR พร้อมเข้าสู่ approval และเป็นฐานให้ PO ส่วนถ้า route เข้าถึง NDBS_BUDGET_PR ได้ ระบบจะเริ่มลง movement ของ PR และคำนวณยอดคงเหลือต่อ",
+    note: "จากไฟล์ปัจจุบัน NDBS_BUDGET_PR มี logic พร้อมใช้งาน แต่ทางเข้าจาก NDBS_BUDGET_CONTROL ยังควรรีบยืนยัน เพราะ outer IF ไม่รวม object_type ของ PR",
+    caption: "4 จุด block ของ PR และ 1 จุดเสี่ยงของเส้นทาง PR ในชั้นคุมงบ",
+    tags: ["Transaction Notification", "NDBS_BUDGET_PR", "ก่อน PO"],
     rules: [
       {
         title: "ไม่มีฝ่าย",
@@ -294,8 +503,8 @@ const workflowData = {
     from: "เอกสารที่ผ่านด่านตรวจข้อมูลต้นทาง และเอกสาร downstream เช่น GRPO / Goods Return",
     to: "NDBS_BGC_OBDE / NDBS_BGC_OBPE / transaction commit",
     impact: "ถึงด่านต้นทางจะผ่าน ถ้าด่านคุมงบขั้นสุดท้ายเจอ error หรือ logic ผิด เอกสารก็ยังไม่ commit",
-    pass: "เมื่อไม่มี error ด่านคุมงบขั้นสุดท้ายจะเขียน movement ตามสถานะเอกสาร อัปเดตงบคงเหลือ และลบแถว Amount = 0 ก่อนจบ",
-    note: "จากไฟล์ปัจจุบัน ด่านคุมงบขั้นสุดท้ายรองรับ PO, GRPO, A/P Invoice, Goods Return, APCN และ JE ชัดเจน ส่วน PR branch ยังควรรีบตรวจเพราะดูเหมือนเข้าไม่ถึง",
+    pass: "เมื่อไม่มี error ด่านคุมงบขั้นสุดท้ายจะเขียน movement ตามสถานะเอกสาร อัปเดตยอดคงเหลือผ่าน NDBS_UpdateBudgetAmount และลบแถว Amount = 0 ก่อนจบ",
+    note: "ตอนนี้ flow หลักชัดเจนแล้วว่า Transaction Notification เรียก NDBS_BUDGET_CONTROL แล้วค่อยให้ NDBS_UpdateBudgetAmount ปรับยอดคงเหลือ ส่วน PR ยังควรรีบตรวจเรื่อง route เข้าถึง",
     caption: "5 เรื่องที่ด่านคุมงบขั้นสุดท้ายทำจริงกับงบ และ 1 จุด block สำคัญที่ยัง active อยู่",
     tags: ["ด่านคุมงบขั้นสุดท้าย", "Reserve / Actual / Reverse", "ก่อน commit"],
     rules: [
@@ -338,11 +547,127 @@ const workflowData = {
   },
 };
 
+const systemWorkflowCodeLibrary = {
+  engine: [
+    {
+      label: "Budget Engine ส่งต่อเข้า helper คำนวณยอด",
+      ref: "NDBS_BUDGET_CONTROL.sql:538, 601, 1499-1510, 2238-2308",
+      snippet: `Call NDBS_UpdateBudgetAmount(:OldGroup,:OldYear,'D',:OldDept);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+
+INSERT INTO "NDBS_BGC_OBPE" (...)
+select ..., -SUM("Amount"), "BudgetType", "ValueDate", 'A'
+From NDBS_BGC_OBPE
+Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
+    },
+    {
+      label: "ล้าง movement ที่ Amount = 0 ก่อนจบ",
+      ref: "NDBS_BUDGET_CONTROL.sql:2313-2314",
+      snippet: `DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;`,
+    },
+  ],
+  update: [
+    {
+      label: "โครง procedure ของ NDBS_UpdateBudgetAmount",
+      ref: "NDBS_UpdateBudgetAmount.sql:1-16",
+      snippet: `CREATE PROCEDURE NDBS_UpdateBudgetAmount
+(
+  in budgetgroup nvarchar(50),
+  in budgetyear nvarchar(50),
+  in budgettype nvarchar(50),
+  in budgettypecode nvarchar(50)
+)
+...
+If :budgettype = 'D' Then`,
+    },
+    {
+      label: "เลือกทาง Department หรือ Project",
+      ref: "NDBS_UpdateBudgetAmount.sql:16-17, 36-37",
+      snippet: `If :budgettype = 'D' Then
+  ...
+else
+  ...
+end if;`,
+    },
+  ],
+  recalc: [
+    {
+      label: "รวมยอด Reserve และ Actual ฝั่ง Department",
+      ref: "NDBS_UpdateBudgetAmount.sql:16-31",
+      snippet: `Select SUM(IFNULL("Amount",0)) INTO NetReserve
+From "NDBS_BGC_OBDE"
+WHERE "Department" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear
+AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
+
+Select SUM(IFNULL("Amount",0)) INTO NetActual
+From "NDBS_BGC_OBDE"
+WHERE "Department" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear
+AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';`,
+    },
+    {
+      label: "รวมยอด Reserve และ Actual ฝั่ง Project",
+      ref: "NDBS_UpdateBudgetAmount.sql:37-50",
+      snippet: `Select SUM(IFNULL("Amount",0)) INTO NetReserve
+From "NDBS_BGC_OBPE"
+WHERE "Project" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear
+AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
+
+Select SUM(IFNULL("Amount",0)) INTO NetActual
+From "NDBS_BGC_OBPE"
+WHERE "Project" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear
+AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';`,
+    },
+  ],
+  writeback: [
+    {
+      label: "เขียนยอดกลับ budget master",
+      ref: "NDBS_UpdateBudgetAmount.sql:32-35, 52-55",
+      snippet: `Update "@NDBS_BGC_BDPL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
+    "U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
+    "U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
+WHERE "Code" = :budgetyear AND "U_GroupCode" = :budgetgroup AND "U_Department" = :budgettypecode;
+
+Update "@NDBS_BGC_BPJL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
+    "U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
+    "U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
+WHERE "Code" = :budgetyear AND "U_GroupCode" = :budgetgroup AND "U_Project" = :budgettypecode;`,
+    },
+    {
+      label: "loop sync แถวที่ U_BudgetRem ยังเป็น null",
+      ref: "NDBS_UpdateBudgetAmount.sql:58-104",
+      snippet: `for currloop as loopbudgetdept do
+  ...
+  Update "@NDBS_BGC_BDPL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), ...
+  WHERE "Code" = currloop."Code" AND "U_GroupCode" = currloop."U_GroupCode" AND "U_Department" = currloop."U_Department";
+end for;
+
+for currloop as loopbudgetproj do
+  ...
+  Update "@NDBS_BGC_BPJL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), ...
+  WHERE "Code" = currloop."Code" AND "U_GroupCode" = currloop."U_GroupCode" AND "U_Project" = currloop."U_Project";
+end for;`,
+    },
+  ],
+  commit: [
+    {
+      label: "คืนผลกลับจาก Transaction Notification ไปยัง SAP",
+      ref: "SBO_SP_TransactionNotification.sql:1105-1112",
+      snippet: `if :error = 0 then
+  call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);
+end if;
+
+select :error, :error_message FROM dummy;`,
+    },
+  ],
+};
+
 const workflowCodeLibrary = {
   draft: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:155-176",
+      ref: "SBO_SP_TransactionNotification.sql:717-736",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt
   from ODRF t0
@@ -362,7 +687,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:180-200",
+      ref: "SBO_SP_TransactionNotification.sql:742-760",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt1
   from ODRF t0
@@ -378,7 +703,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 105",
-      ref: "Budget.sql:205-247",
+      ref: "SBO_SP_TransactionNotification.sql:767-805",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
   ...
   where T0."ObjType" IN ('1470000113','22')
@@ -395,7 +720,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 209",
-      ref: "Budget.sql:339-378",
+      ref: "SBO_SP_TransactionNotification.sql:901-936",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -412,7 +737,7 @@ End If;`,
   pr: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:4-21",
+      ref: "SBO_SP_TransactionNotification.sql:565-583",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPRQ t0
@@ -429,7 +754,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 101",
-      ref: "Budget.sql:23-40",
+      ref: "SBO_SP_TransactionNotification.sql:585-602",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPRQ t0
@@ -444,7 +769,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 501",
-      ref: "Budget.sql:295-335",
+      ref: "SBO_SP_TransactionNotification.sql:857-893",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
   ...
   where IFNULL(T1."Project",'') = ''
@@ -460,7 +785,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 203",
-      ref: "Budget.sql:424-462",
+      ref: "SBO_SP_TransactionNotification.sql:986-1020",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -492,7 +817,7 @@ end if;`,
   po: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:43-61",
+      ref: "SBO_SP_TransactionNotification.sql:605-623",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPOR t0
@@ -508,7 +833,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 102",
-      ref: "Budget.sql:64-83",
+      ref: "SBO_SP_TransactionNotification.sql:626-645",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPOR t0
@@ -524,7 +849,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 100",
-      ref: "Budget.sql:252-292",
+      ref: "SBO_SP_TransactionNotification.sql:814-850",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
   ...
   where IFNULL(T1."Project",'') = ''
@@ -540,7 +865,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 202",
-      ref: "Budget.sql:383-421",
+      ref: "SBO_SP_TransactionNotification.sql:945-979",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -555,7 +880,7 @@ End If;`,
     },
     {
       label: "Budget Year ไม่ตรงรูปแบบ | Error 301",
-      ref: "Budget.sql:464-498",
+      ref: "SBO_SP_TransactionNotification.sql:1027-1056",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt
   from OPOR t0
@@ -619,7 +944,7 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
   ap: [
     {
       label: "A/P Invoice ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:86-107",
+      ref: "SBO_SP_TransactionNotification.sql:648-669",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPCH t0
@@ -635,7 +960,7 @@ End If;`,
     },
     {
       label: "A/P Credit Memo ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:110-130",
+      ref: "SBO_SP_TransactionNotification.sql:672-692",
       snippet: `IF :object_type ='19' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from ORPC t0
@@ -651,7 +976,7 @@ End If;`,
     },
     {
       label: "A/P Invoice ปีงบไม่ตรงรูปแบบ | Error 302",
-      ref: "Budget.sql:501-520",
+      ref: "SBO_SP_TransactionNotification.sql:1064-1082",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPCH t0
@@ -700,7 +1025,7 @@ end if;`,
   je: [
     {
       label: "ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:134-152",
+      ref: "SBO_SP_TransactionNotification.sql:696-714",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."TransId") Into cnt
   from OJDT t0
@@ -716,7 +1041,7 @@ End If;`,
     },
     {
       label: "Budget Year ไม่ตรงรูปแบบ | Error 303",
-      ref: "Budget.sql:523-541",
+      ref: "SBO_SP_TransactionNotification.sql:1086-1103",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."TransId") Into cnt
   from OJDT t0
@@ -746,7 +1071,7 @@ Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
   final: [
     {
       label: "ด่านต้นทางเรียก procedure ขั้นสุดท้าย",
-      ref: "Budget.sql:543-545",
+      ref: "SBO_SP_TransactionNotification.sql:1105-1106",
       snippet: `if :error = 0 then
   call NDBS_BUDGET_CONTROL (
     :object_type,
@@ -1035,7 +1360,7 @@ const ndbsWorkflowCodeLibrary = {
   entry: [
     {
       label: "ด่านต้นทางเรียก procedure ขั้นสุดท้าย",
-      ref: "Budget.sql:543-545",
+      ref: "SBO_SP_TransactionNotification.sql:1105-1106",
       snippet: `if :error = 0 then
   call NDBS_BUDGET_CONTROL (
     :object_type,
@@ -1185,6 +1510,764 @@ DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;`,
   ],
 };
 
+const backendRoleCodeLibrary = {
+  draft: [
+    {
+      label: "เช็กฝ่ายและปีงบของ Draft",
+      ref: "SBO_SP_TransactionNotification.sql:717-760",
+      snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."OcrCode",'')=''
+  and T0."ObjType" IN ('1470000049','22')
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนใส่ฝ่าย';
+End If;
+
+IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and T0."ObjType" IN ('1470000049','22','18','19')
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;`,
+    },
+    {
+      label: "เช็ก budget setup ของ Draft",
+      ref: "SBO_SP_TransactionNotification.sql:767-809, 901-940",
+      snippet: `IF :object_type ='112' And (:transaction_type = 'A' ) Then
+  ...
+  and T0."ObjType" IN ('1470000113','22')
+  and IFNULL(T1."Project",'') = ''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 105;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณ';
+End If;
+
+IF :object_type ='112' And (:transaction_type = 'A' ) Then
+  ...
+  and IFNULL(T1."Project",'')<>''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 209;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณProject';
+End If;`,
+    },
+  ],
+  pr: [
+    {
+      label: "เช็กข้อมูลต้นทางของ PR",
+      ref: "SBO_SP_TransactionNotification.sql:565-602",
+      snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."OcrCode",'')=''
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนใส่ฝ่าย';
+End If;
+
+IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 101;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;`,
+    },
+    {
+      label: "เช็ก budget setup ของ PR",
+      ref: "SBO_SP_TransactionNotification.sql:857-897, 986-1024",
+      snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' ) Then
+  ...
+  and IFNULL(T1."Project",'') = ''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 501;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณ';
+End If;
+
+IF :object_type ='1470000113' And (:transaction_type = 'A' ) Then
+  ...
+  and IFNULL(T1."Project",'')<>''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 203;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณProject';
+End If;`,
+    },
+    {
+      label: "จุดที่ runtime ตั้งใจส่ง PR เข้า procedure แยก",
+      ref: "NDBS_BUDGET_CONTROL.sql:487-491",
+      snippet: `IF ( :object_type in ('30','22','21','20','18','19'/*,'1470000049'*/)) then
+  if ( :object_type = '1470000113') then
+    Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);
+  elseif ( :object_type = '22') then
+    ...
+  end if;
+end if;`,
+    },
+    {
+      label: "movement ของ PR ใน NDBS_BUDGET_PR",
+      ref: "NDBS_BUDGET_PR.sql:35-132",
+      snippet: `for currloop as looppr do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    ...
+    INSERT INTO "NDBS_BGC_OBDE" (...)
+    VALUES
+    (:AutoKey,currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),currloop."OcrCode",
+     '1470000113',currloop."DocEntry",currloop."LineNum",...,currloop."LineTotal",'R',currloop."DocDate",'I',...);
+    Call NDBS_UpdateBudgetAmount(currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),'D',currloop."OcrCode");
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...)
+    VALUES
+    (:AutoKey,currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),currloop."Project",
+     '1470000113',currloop."DocEntry",currloop."LineNum",...,currloop."LineTotal",'R',currloop."DocDate",'I',...);
+    Call NDBS_UpdateBudgetAmount(currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),'P',currloop."Project");
+  end if;
+end for;`,
+    },
+  ],
+  po: [
+    {
+      label: "เช็กฝ่ายและปีงบของ PO",
+      ref: "SBO_SP_TransactionNotification.sql:604-645",
+      snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."OcrCode",'')=''
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนใส่ฝ่าย';
+End If;
+
+IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 102;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;`,
+    },
+    {
+      label: "เช็ก budget setup และรูปแบบปีงบของ PO",
+      ref: "SBO_SP_TransactionNotification.sql:813-854, 944-983, 1026-1060",
+      snippet: `IF :object_type ='22' And (:transaction_type = 'A' ) Then
+  ...
+  and IFNULL(T1."Project",'') = ''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณ';
+End If;
+
+IF :object_type ='22' And (:transaction_type = 'A' ) Then
+  ...
+  and IFNULL(T1."Project",'')<>''
+  and ifnull(B."U_BudgetAmt",0) =0
+  ...
+  error := 202;
+  error_message := 'ISS รบกวนตรวจสอบงบประมาณProject';
+End If;
+
+and LEFT(T1."U_NDBS_BudgetYear",3) <> '202'
+...
+error := 301;`,
+    },
+    {
+      label: "PO กันงบฝั่งฝ่าย",
+      ref: "NDBS_BUDGET_CONTROL.sql:542-601",
+      snippet: `if(:transaction_type in ('U','A')) then
+  ...
+  IF ((:BAvailable+:BaseAmount) >= :LineAmount) OR (:BLocked = 'N') OR (:BNotChecked = 'Y') then
+    INSERT INTO "NDBS_BGC_OBDE"
+    ("DocEntry","BudgetGroup","BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
+     "BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
+     "PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine")
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
+     :BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
+
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+  end if;
+end if;`,
+    },
+    {
+      label: "PO กันงบฝั่งโครงการและ block ถ้างบไม่พอ",
+      ref: "NDBS_BUDGET_CONTROL.sql:1353-1383",
+      snippet: `if(:transaction_type in ('U','A')) then
+  Select TOP 1 T0."U_BudgetRem" into BAvailable
+  FROM "@NDBS_BGC_BPJL" T0
+  WHERE T0."Code" = TO_NVARCHAR(:BYear) AND T0."U_GroupCode" = :BCode AND T0."U_Project" = :BProject;
+
+  IF (:BAvailable >= :LineAmount) OR (:BLocked = 'N') OR (:BNotChecked = 'Y') then
+    INSERT INTO "NDBS_BGC_OBPE" (...)
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'22',:DocKey,:DocLine,...,:BAmount,'R',:BValDate,'I',...);
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+  else
+    error = -32;
+    error_message = CONCAT(CONCAT('Project ',:BProject),'Over budget');
+  end if;
+end if;`,
+    },
+    {
+      label: "PO คืนงบตอนปิดเอกสารหรือปิดบรรทัด",
+      ref: "NDBS_BUDGET_CONTROL.sql:2238-2308",
+      snippet: `if ( :object_type = '22') then
+  ...
+  INSERT INTO "NDBS_BGC_OBPE" (...)
+  select ..., -SUM("Amount"), "BudgetType", "ValueDate", 'A'
+  From NDBS_BGC_OBPE
+  Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');
+  Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+
+  INSERT INTO "NDBS_BGC_OBDE" (...)
+  select ..., -SUM("Amount"), "BudgetType", "ValueDate", 'A'
+  From NDBS_BGC_OBDE
+  Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');
+  Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+end if;`,
+    },
+    {
+      label: "PO ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:312-367",
+      snippet: `for currloop as looppo do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...)
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,...,:BAmount,'R',:BValDate,'I',...,'Y','looppo');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...)
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'22',:DocKey,:DocLine,...,:BAmount,'R',:BValDate,'I',...,'Y','looppo');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+  end if;
+end for;`,
+    },
+  ],
+  grpo: [
+    {
+      label: "GRPO เปลี่ยนจากกันงบเป็นใช้จริงฝั่งฝ่าย",
+      ref: "NDBS_BUDGET_CONTROL.sql:690-732",
+      snippet: `INSERT INTO "NDBS_BGC_OBDE"
+(...,"Amount","BudgetType","ValueDate","BudgetStatus",...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBDept,:BaseType,:BaseKey,:BaseLine,
+ '20',:DocKey,:DocLine,-:BaseAmount,'R',:BValDate,'A','20',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:OldBDept);
+
+INSERT INTO "NDBS_BGC_OBDE"
+(...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'20',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','20',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
+    },
+    {
+      label: "GRPO เปลี่ยนจากกันงบเป็นใช้จริงฝั่งโครงการ",
+      ref: "NDBS_BUDGET_CONTROL.sql:1493-1537",
+      snippet: `INSERT INTO "NDBS_BGC_OBPE"
+(...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,:BaseType,:BaseKey,:BaseLine,
+ '20',:DocKey,:DocLine,-:BaseAmount,'R',:BValDate,'A','20',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:OldBProject);
+
+INSERT INTO "NDBS_BGC_OBPE"
+(...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'20',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','20',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);`,
+    },
+    {
+      label: "GRPO ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:371-424",
+      snippet: `for currloop as loopgrn do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...)
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'20',:DocKey,:DocLine,...,:BAmount,'A',:BValDate,'I',...,'Y','loopgrn');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...)
+    VALUES
+    (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'20',:DocKey,:DocLine,...,:BAmount,'A',:BValDate,'I',...,'Y','loopgrn');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+  end if;
+end for;`,
+    },
+  ],
+  apinvoice: [
+    {
+      label: "เช็กปีงบของ A/P Invoice ก่อนเข้าด่านคุมงบ",
+      ref: "SBO_SP_TransactionNotification.sql:647-669, 1063-1082",
+      snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;
+
+IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and LEFT(T1."U_NDBS_BudgetYear",4) <'2024'
+  ...
+  error := 302;
+  error_message := 'ISS รบกวนตรวจสอบ Budget Year';
+End If;`,
+    },
+    {
+      label: "A/P Invoice ยกเลิก movement เดิมเมื่อ cancel",
+      ref: "NDBS_BUDGET_CONTROL.sql:742-765, 1547-1570",
+      snippet: `IF IsCancelled = 'C' then
+  ...
+  Update "NDBS_BGC_OBDE" Set "BudgetStatus" = 'C'
+  Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
+  Call NDBS_UpdateBudgetAmount (:OldGroup,:OldYear,'D',:OldDept);
+
+  Update "NDBS_BGC_OBPE" Set "BudgetStatus" = 'C'
+  Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
+  Call NDBS_UpdateBudgetAmount (:OldGroup,:OldYear,'P',:OldDept);
+end if;`,
+    },
+    {
+      label: "A/P Invoice รับรู้ใช้จริงใน runtime",
+      ref: "NDBS_BUDGET_CONTROL.sql:830-847, 1044-1063, 1618-1635, 1848-1855",
+      snippet: `INSERT INTO "NDBS_BGC_OBDE" (...)
+VALUES
+(:AutoKey,:OldGroup,TO_NVARCHAR(:BYear),:OldDept,:BaseType,:BaseKey,:BaseLine,
+ '18',:DocKey,:DocLine,-:OldAmount,'R',:BValDate,'A','18',:DocKey,:DocLine);
+
+INSERT INTO "NDBS_BGC_OBDE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,'18',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
+
+INSERT INTO "NDBS_BGC_OBPE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);`,
+    },
+    {
+      label: "A/P Invoice ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:428-599",
+      snippet: `for currloop as loopinv1 do
+  INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'18',...,'A',...,'loopinv1');
+  Call NDBS_UpdateBudgetAmount(...);
+end for;
+
+for currloop as loopinv2 do
+  INSERT INTO "NDBS_BGC_OBDE" / "NDBS_BGC_OBPE" (...) VALUES (...,'18',...,'A',...,'loopinv2');
+  Call NDBS_UpdateBudgetAmount(...);
+end for;
+
+for currloop as loopinv3 do
+  INSERT INTO "NDBS_BGC_OBDE" / "NDBS_BGC_OBPE" (...) VALUES (...,'18',...,'A',...,'loopinv3');
+  Call NDBS_UpdateBudgetAmount(...);
+end for;`,
+    },
+  ],
+  goodsreturn: [
+    {
+      label: "Goods Return ปรับยอดใช้จริงใน runtime",
+      ref: "NDBS_BUDGET_CONTROL.sql:1071-1103, 1863-1892",
+      snippet: `INSERT INTO "NDBS_BGC_OBDE"
+(...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'21',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','21',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+
+INSERT INTO "NDBS_BGC_OBPE"
+(...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'21',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','21',:DocKey,:DocLine);
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);`,
+    },
+    {
+      label: "Goods Return ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:603-658",
+      snippet: `for currloop as loopreturn do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'21',...,'A',...,'Y','loopreturn');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...) VALUES (...,'21',...,'A',...,'Y','loopreturn');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+  end if;
+end for;`,
+    },
+  ],
+  apcreditmemo: [
+    {
+      label: "เช็กปีงบของ A/P Credit Memo ก่อนเข้าด่านคุมงบ",
+      ref: "SBO_SP_TransactionNotification.sql:671-692",
+      snippet: `IF :object_type ='19' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;`,
+    },
+    {
+      label: "A/P Credit Memo คืนงบฝั่งฝ่าย",
+      ref: "NDBS_BUDGET_CONTROL.sql:1115-1219",
+      snippet: `Update "NDBS_BGC_OBDE" Set "BudgetStatus" = 'C'
+Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
+
+INSERT INTO "NDBS_BGC_OBDE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBDept,:BaseType,:BaseKey,:BaseLine,
+ '19',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','19',:DocKey,:DocLine);
+
+INSERT INTO "NDBS_BGC_OBDE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'19',:DocKey,:DocLine,
+ :BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine);`,
+    },
+    {
+      label: "A/P Credit Memo คืนงบฝั่งโครงการ",
+      ref: "NDBS_BUDGET_CONTROL.sql:2014-2125",
+      snippet: `IF (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then
+  Update "NDBS_BGC_OBPE" Set "BudgetStatus" = 'C'
+  Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
+
+  INSERT INTO "NDBS_BGC_OBPE" (...)
+  VALUES
+  (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,:BaseType,:BaseKey,:BaseLine,
+   '19',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','19',:DocKey,:DocLine);
+
+  INSERT INTO "NDBS_BGC_OBPE" (...)
+  VALUES
+  (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'19',:DocKey,:DocLine,
+   :BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine);
+end if;`,
+    },
+    {
+      label: "A/P Credit Memo ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:661-768",
+      snippet: `for currloop as loopcn1 do
+  INSERT INTO "NDBS_BGC_OBDE" / "NDBS_BGC_OBPE" (...) VALUES (...,'19',...,-:BAmount,'A',...,'Y','loopcn1');
+  Call NDBS_UpdateBudgetAmount(...);
+end for;
+
+for currloop as loopcn2 do
+  INSERT INTO "NDBS_BGC_OBDE" / "NDBS_BGC_OBPE" (...) VALUES (...,'19',...,-:BAmount,'A',...,'Y','loopcn2');
+  Call NDBS_UpdateBudgetAmount(...);
+end for;`,
+    },
+  ],
+  je: [
+    {
+      label: "เช็กปีงบของ JE ก่อนเข้าด่านคุมงบ",
+      ref: "SBO_SP_TransactionNotification.sql:695-714, 1085-1103",
+      snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+  error := 100;
+  error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+End If;
+
+IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+  ...
+  and LEFT(T1."U_NDBS_BudgetYear",4) <'2024'
+  ...
+  error := 303;
+  error_message := 'ISS รบกวนตรวจสอบ Budget Year';
+End If;`,
+    },
+    {
+      label: "JE ลง actual ใน runtime",
+      ref: "NDBS_BUDGET_CONTROL.sql:1249-1260, 2175-2186",
+      snippet: `if (:transaction_type IN ('U')) THEN
+  Update "NDBS_BGC_OBDE" Set "BudgetStatus" = 'C'
+  Where "ObjectType" = '30' AND "ObjectID"= :DocKey AND "ObjectLine" = :DocLine;
+end if;
+
+INSERT INTO "NDBS_BGC_OBDE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'30',:DocKey,:DocLine,'',0,0,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine);
+
+INSERT INTO "NDBS_BGC_OBPE" (...)
+VALUES
+(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'30',:DocKey,:DocLine,'',0,0,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine);`,
+    },
+    {
+      label: "JE ใน flow rebuild ย้อนหลัง",
+      ref: "NDBS_BUDGET_BEGINING.sql:771-826",
+      snippet: `for currloop as loopje do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'30',...,:BAmount,'A',...,'Y','loopje');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...) VALUES (...,'30',...,:BAmount,'A',...,'Y','loopje');
+    Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+  end if;
+end for;`,
+    },
+  ],
+  rebuild: [
+    {
+      label: "cursor ที่ใช้ไล่เอกสารใน rebuild",
+      ref: "NDBS_BUDGET_BEGINING.sql:61-244",
+      snippet: `Declare cursor looppo for ...
+Declare cursor loopgrn for ...
+Declare cursor loopinv1 for ...
+Declare cursor loopinv2 for ...
+Declare cursor loopinv3 for ...
+Declare cursor loopreturn for ...
+Declare cursor loopcn1 for ...
+Declare cursor loopcn2 for ...
+Declare cursor loopje for ...`,
+    },
+    {
+      label: "rebuild เขียน movement กลับเข้า ledger และคำนวณยอดใหม่",
+      ref: "NDBS_BUDGET_BEGINING.sql:312-339, 389-397, 791-826",
+      snippet: `INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'22',...,'R',...,'Y','looppo');
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+
+INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'20',...,'A',...,'Y','loopgrn');
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
+
+INSERT INTO "NDBS_BGC_OBPE" (...) VALUES (...,'30',...,'A',...,'Y','loopje');
+Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);`,
+    },
+    {
+      label: "PR rebuild ยังถูกปิดไว้",
+      ref: "NDBS_BUDGET_BEGINING.sql:282-309",
+      snippet: `/*
+for currloop as looppr do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...) VALUES (...,'1470000113',...,'R',...,'Y','looppr');
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...) VALUES (...,'1470000113',...,'R',...,'Y','looppr');
+  end if;
+end for;
+*/`,
+    },
+  ],
+};
+
+const developerCodeLibrary = {
+  draft_year_var: [
+    {
+      label: "นับลง cnt1 แต่ไปเช็ก cnt",
+      ref: "SBO_SP_TransactionNotification.sql:742-760",
+      snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
+
+  select count(t0."DocEntry") into cnt1
+  from ODRF t0
+  left join DRF1 t1 on t0."DocEntry" = t1."DocEntry"
+  ...
+  and T0."ObjType" IN ('1470000049','22','18','19')
+  and IFNULL(t1."U_NDBS_BudgetYear",0)=0
+  ...
+
+  If :cnt > 0 Then
+    error := 100;
+    error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
+  End If;
+End If;`,
+    },
+  ],
+  draft_pr_objtype: [
+    {
+      label: "Draft PR ยังอ้าง object type เดิม",
+      ref: "SBO_SP_TransactionNotification.sql:717-750",
+      snippet: `and T0."ObjType" IN ('1470000049','22')
+...
+and T0."ObjType" IN ('1470000049','22','18','19')`,
+    },
+  ],
+  pr_route_unreachable: [
+    {
+      label: "Outer IF ไม่รวม PR แต่ inner call ยังมี",
+      ref: "NDBS_BUDGET_CONTROL.sql:487-491",
+      snippet: `IF ( :object_type in ('30','22','21','20','18','19'/*,'1470000049'*/)) then
+
+  if ( :object_type = '1470000113') then
+    Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);
+  elseif ( :object_type = '22') then
+    ...
+  end if;
+end if;`,
+    },
+  ],
+  project_year_wrong: [
+    {
+      label: "loop project ใช้ U_Project ไปเทียบ BudgetYear",
+      ref: "NDBS_UpdateBudgetAmount.sql:82-103",
+      snippet: `for currloop as loopbudgetproj do
+  Select SUM(IFNULL("Amount",0)) INTO NetReserve
+  From "NDBS_BGC_OBPE"
+  WHERE "Project" = currloop."U_Project" AND "BudgetGroup" = currloop."U_GroupCode"
+  AND "BudgetYear" = currloop."U_Project"
+  AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
+
+  Select SUM(IFNULL("Amount",0)) INTO NetActual
+  From "NDBS_BGC_OBPE"
+  WHERE "Project" = currloop."U_Project" AND "BudgetGroup" = currloop."U_GroupCode"
+  AND "BudgetYear" = currloop."U_Project"
+  AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';
+end for;`,
+    },
+  ],
+  apcn_project_or: [
+    {
+      label: "Project condition ใช้ OR แทน AND",
+      ref: "NDBS_BUDGET_CONTROL.sql:2014-2050",
+      snippet: `IF IsCancelled = 'C' then
+  for currloop as loopcncancel do
+    IF (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then
+      ...
+    end if;
+  end for;
+else
+  ...
+  for currloop as loopcn1 do
+    if (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then
+      ...
+    end if;
+  end for;
+end if;`,
+    },
+  ],
+  bcount_ge_zero: [
+    {
+      label: "BCount >= 0 ผ่านเสมอหลัง COUNT(*)",
+      ref: "NDBS_BUDGET_CONTROL.sql:1118-1129, 2022-2033",
+      snippet: `Select Count(*) into BCount
+From "NDBS_BGC_OBDE"
+Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
+
+IF BCount >= 0 then
+  Select TOP 1 "BudgetYear","BudgetGroup","Department" into OldYear,OldGroup,OldDept
+  From "NDBS_BGC_OBDE"
+  ...
+end if;
+
+Select Count(*) into BCount
+From "NDBS_BGC_OBPE"
+...
+IF BCount >= 0 then
+  Select TOP 1 "BudgetYear","BudgetGroup","Project" into OldYear,OldGroup,OldProject
+  ...
+end if;`,
+    },
+  ],
+  rebuild_no_cleanup: [
+    {
+      label: "เริ่ม rebuild แล้วเข้า loop insert เลย",
+      ref: "NDBS_BUDGET_BEGINING.sql:1-7, 312-339",
+      snippet: `CREATE PROCEDURE NDBS_BUDGET_BEGINING
+(
+
+)
+LANGUAGE SQLSCRIPT
+AS
+begin
+  -- Budget Control
+  ...
+
+  for currloop as looppo do
+    ...
+    INSERT INTO "NDBS_BGC_OBDE" (...)
+    VALUES (...,'22',...,'R',...);
+  end for;`,
+    },
+    {
+      label: "ไม่พบ DELETE หรือ TRUNCATE ก่อนสร้างใหม่",
+      ref: "NDBS_BUDGET_BEGINING.sql:1-831",
+      snippet: `-- ตรวจทั้งไฟล์แล้วไม่พบคำสั่งล้าง ledger ก่อนเข้า loop เหล่านี้
+for currloop as looppo do ... end for;
+for currloop as loopgrn do ... end for;
+for currloop as loopinv1 do ... end for;
+for currloop as loopcn1 do ... end for;
+for currloop as loopje do ... end for;`,
+    },
+  ],
+  rebuild_pr_commented: [
+    {
+      label: "block ของ PR ใน rebuild ถูก comment ทิ้งทั้งชุด",
+      ref: "NDBS_BUDGET_BEGINING.sql:282-309",
+      snippet: `/*
+for currloop as looppr do
+  if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
+    INSERT INTO "NDBS_BGC_OBDE" (...)
+    VALUES (...,'1470000113',...,'R',...,'Y','looppr');
+  elseif (currloop."Project" <> '') then
+    INSERT INTO "NDBS_BGC_OBPE" (...)
+    VALUES (...,'1470000113',...,'R',...,'Y','looppr');
+  end if;
+end for;
+*/`,
+    },
+  ],
+  overbudget_mismatch: [
+    {
+      label: "ฝั่ง Department ไม่ block แล้ว",
+      ref: "NDBS_BUDGET_CONTROL.sql:603-614",
+      snippet: `else
+  --GUN 20260321 -- error= -32;
+  --error_message = 'Department '+ :BDept+' Line No. '+TO_NVARCHAR(:DocLine) +' Budget Available '+
+  --  TO_NVARCHAR(:BAvailable)+ ' less than Item Amount ' +TO_NVARCHAR(:BAmount);
+  --GUN 20260321 -- error_message = CONCAT(CONCAT('Department ',:BDept),'Over budget');
+end if;`,
+    },
+    {
+      label: "ฝั่ง Project ยัง block อยู่จริง",
+      ref: "NDBS_BUDGET_CONTROL.sql:1379-1383",
+      snippet: `else
+  error = -32;
+  error_message = CONCAT(CONCAT('Project ',:BProject),'Over budget') ;
+end if;`,
+    },
+  ],
+  budget_year_mismatch: [
+    {
+      label: "PO ใช้คนละเงื่อนไขกับ AP และ JE",
+      ref: "SBO_SP_TransactionNotification.sql:1050, 1071, 1092",
+      snippet: `-- PO
+and LEFT(T1."U_NDBS_BudgetYear",3) <> '202'
+
+-- AP
+and LEFT(T1."U_NDBS_BudgetYear",4) <'2024'
+
+-- JE
+and LEFT(T1."U_NDBS_BudgetYear",4) <'2024'`,
+    },
+  ],
+};
+
+const systemWorkflowElements = {
+  chips: systemFlowChips,
+  connectors: systemFlowConnectors,
+  detail: systemFlowDetail,
+  stagePosition: systemFlowStagePosition,
+  stageCaption: systemFlowStageCaption,
+  prevButton: systemFlowPrevButton,
+  nextButton: systemFlowNextButton,
+  detailKicker: systemFlowDetailKicker,
+  detailTitle: systemFlowDetailTitle,
+  detailSummary: systemFlowDetailSummary,
+  detailTags: systemFlowDetailTags,
+  detailFrom: systemFlowDetailFrom,
+  detailTo: systemFlowDetailTo,
+  detailImpact: systemFlowDetailImpact,
+  ruleCaption: systemFlowRuleCaption,
+  detailRules: systemFlowDetailRules,
+  detailPass: systemFlowDetailPass,
+  detailNote: systemFlowDetailNote,
+  detailCodes: systemFlowDetailCodes,
+};
+
 const workflowElements = {
   chips: flowChips,
   connectors: flowConnectors,
@@ -1228,6 +2311,46 @@ const ndbsWorkflowElements = {
   detailNote: ndbsFlowDetailNote,
   detailCodes: ndbsFlowDetailCodes,
 };
+
+function renderCodeDropdownList(container, entries) {
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  entries.forEach((entry) => {
+    const details = document.createElement("details");
+    details.className = "code-dropdown";
+
+    const summary = document.createElement("summary");
+
+    const head = document.createElement("div");
+    head.className = "code-dropdown-head";
+
+    const label = document.createElement("span");
+    label.className = "code-dropdown-label";
+    label.textContent = entry.label;
+
+    const ref = document.createElement("span");
+    ref.className = "code-dropdown-ref";
+    ref.textContent = entry.ref;
+
+    head.append(label, ref);
+    summary.appendChild(head);
+
+    const snippetWrap = document.createElement("div");
+    snippetWrap.className = "code-snippet-wrap";
+
+    const snippet = document.createElement("pre");
+    snippet.className = "code-snippet";
+    snippet.textContent = entry.snippet;
+
+    snippetWrap.appendChild(snippet);
+    details.append(summary, snippetWrap);
+    container.appendChild(details);
+  });
+}
 
 function renderFlowStage(stageKey, order, data, codeLibrary, elements, setActiveStage) {
   const stage = data[stageKey];
@@ -1343,8 +2466,6 @@ function renderFlowStage(stageKey, order, data, codeLibrary, elements, setActive
   }
 
   if (elements.detailCodes) {
-    elements.detailCodes.innerHTML = "";
-
     const codeRefs =
       codeLibrary[stageKey] ||
       (stage.codes || []).map((item) => ({
@@ -1353,37 +2474,7 @@ function renderFlowStage(stageKey, order, data, codeLibrary, elements, setActive
         snippet: item,
       }));
 
-    codeRefs.forEach((entry) => {
-      const details = document.createElement("details");
-      details.className = "code-dropdown";
-
-      const summary = document.createElement("summary");
-
-      const head = document.createElement("div");
-      head.className = "code-dropdown-head";
-
-      const label = document.createElement("span");
-      label.className = "code-dropdown-label";
-      label.textContent = entry.label;
-
-      const ref = document.createElement("span");
-      ref.className = "code-dropdown-ref";
-      ref.textContent = entry.ref;
-
-      head.append(label, ref);
-      summary.appendChild(head);
-
-      const snippetWrap = document.createElement("div");
-      snippetWrap.className = "code-snippet-wrap";
-
-      const snippet = document.createElement("pre");
-      snippet.className = "code-snippet";
-      snippet.textContent = entry.snippet;
-
-      snippetWrap.appendChild(snippet);
-      details.append(summary, snippetWrap);
-      elements.detailCodes.appendChild(details);
-    });
+    renderCodeDropdownList(elements.detailCodes, codeRefs);
   }
 
   if (elements.prevButton) {
@@ -1408,6 +2499,23 @@ function stepFlow(direction, order, activeStage, renderStage) {
 
   const nextIndex = Math.min(Math.max(currentIndex + direction, 0), order.length - 1);
   renderStage(order[nextIndex]);
+}
+
+function renderSystemWorkflowStage(stageKey) {
+  renderFlowStage(
+    stageKey,
+    systemWorkflowOrder,
+    systemWorkflowData,
+    systemWorkflowCodeLibrary,
+    systemWorkflowElements,
+    (value) => {
+      activeSystemWorkflowStage = value;
+    },
+  );
+}
+
+function stepSystemWorkflow(direction) {
+  stepFlow(direction, systemWorkflowOrder, activeSystemWorkflowStage, renderSystemWorkflowStage);
 }
 
 function renderWorkflowStage(stageKey) {
@@ -1493,15 +2601,15 @@ window.addEventListener(
 );
 
 window.addEventListener("keydown", (event) => {
-  if (isSectionActive(workflowSection) && (event.key === "ArrowLeft" || event.key === "[")) {
+  if (isSectionActive(systemWorkflowSection) && (event.key === "ArrowLeft" || event.key === "[")) {
     event.preventDefault();
-    stepWorkflow(-1);
+    stepSystemWorkflow(-1);
     return;
   }
 
-  if (isSectionActive(workflowSection) && (event.key === "ArrowRight" || event.key === "]")) {
+  if (isSectionActive(systemWorkflowSection) && (event.key === "ArrowRight" || event.key === "]")) {
     event.preventDefault();
-    stepWorkflow(1);
+    stepSystemWorkflow(1);
     return;
   }
 
@@ -1514,12 +2622,31 @@ window.addEventListener("keydown", (event) => {
   if (isSectionActive(ndbsWorkflowSection) && (event.key === "ArrowRight" || event.key === "]")) {
     event.preventDefault();
     stepNdbsWorkflow(1);
+    return;
+  }
+
+  if (isSectionActive(documentWorkflowSection) && (event.key === "ArrowLeft" || event.key === "[")) {
+    event.preventDefault();
+    stepWorkflow(-1);
+    return;
+  }
+
+  if (isSectionActive(documentWorkflowSection) && (event.key === "ArrowRight" || event.key === "]")) {
+    event.preventDefault();
+    stepWorkflow(1);
   }
 });
 
 overviewTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     setOverviewPanel(tab.dataset.panel);
+  });
+});
+
+systemFlowChips.forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const stageKey = chip.dataset.stage;
+    renderSystemWorkflowStage(stageKey);
   });
 });
 
@@ -1537,11 +2664,22 @@ ndbsFlowChips.forEach((chip) => {
   });
 });
 
+systemFlowPrevButton?.addEventListener("click", () => stepSystemWorkflow(-1));
+systemFlowNextButton?.addEventListener("click", () => stepSystemWorkflow(1));
 flowPrevButton?.addEventListener("click", () => stepWorkflow(-1));
 flowNextButton?.addEventListener("click", () => stepWorkflow(1));
 ndbsFlowPrevButton?.addEventListener("click", () => stepNdbsWorkflow(-1));
 ndbsFlowNextButton?.addEventListener("click", () => stepNdbsWorkflow(1));
 
+backendRoleCodeTargets.forEach((target) => {
+  renderCodeDropdownList(target, backendRoleCodeLibrary[target.dataset.backendCode] || []);
+});
+
+developerCodeTargets.forEach((target) => {
+  renderCodeDropdownList(target, developerCodeLibrary[target.dataset.developerCode] || []);
+});
+
 setOverviewPanel("business");
+renderSystemWorkflowStage("engine");
 renderWorkflowStage("draft");
 renderNdbsWorkflowStage("entry");

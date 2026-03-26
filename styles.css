@@ -213,19 +213,11 @@ p {
 
 .panel,
 .card,
-.summary-band,
-.stat-card,
-.flow-node {
+.summary-band {
   border: 1px solid var(--line);
   background: var(--surface);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
-}
-
-.overview-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.8fr);
-  gap: 1rem;
 }
 
 .panel,
@@ -235,36 +227,32 @@ p {
   border-radius: var(--radius-lg);
 }
 
-.stat-strip,
-.overview-grid,
 .card-grid {
   display: grid;
   gap: 1rem;
 }
 
-.stat-strip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.card,
+.system-map-card,
+.backend-role-card,
+.developer-card,
+.flow-meta-card,
+.flow-side-card,
+.flow-rule-card {
+  min-width: 0;
 }
 
-.stat-card {
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.94);
+.card h2,
+.system-map-card h2,
+.backend-role-card h2,
+.developer-card h2,
+.flow-detail h2 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.stat-value {
-  display: block;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
-  font-size: 2rem;
-}
-
-.stat-label {
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
-.overview-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.overview-summary-band {
+  gap: 1rem;
 }
 
 .overview-tabs {
@@ -319,10 +307,6 @@ p {
   animation: detailPulse 240ms ease;
 }
 
-.overview-summary-band {
-  gap: 1rem;
-}
-
 .developer-banner {
   display: flex;
   align-items: center;
@@ -351,6 +335,20 @@ p {
   font-weight: 800;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+.developer-group {
+  display: grid;
+  gap: 1rem;
+}
+
+.developer-group-head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.developer-group-head p {
+  color: var(--muted);
 }
 
 .developer-grid {
@@ -416,6 +414,20 @@ p {
   color: var(--ink);
 }
 
+.developer-card-sql {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+
+.developer-card-sql p {
+  color: var(--muted);
+}
+
+.developer-card-sql .code-dropdown-list {
+  margin-top: 0;
+}
+
 .backend-role-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -440,31 +452,51 @@ p {
   color: var(--ink);
 }
 
-.clean-list {
+.backend-role-sql {
   display: grid;
-  gap: 0.7rem;
-  margin: 0.9rem 0 0;
-  padding-left: 1.15rem;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+
+.backend-role-sql p {
   color: var(--muted);
 }
 
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.9rem;
+.backend-role-sql .code-dropdown-list {
+  margin-top: 0;
 }
 
-.chip-row span {
+.system-map-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.system-map-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.2rem;
+  border: 1px solid rgba(17, 45, 78, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 28px rgba(17, 45, 78, 0.05);
+}
+
+.system-map-card p {
+  color: var(--muted);
+}
+
+.system-file-kicker {
   display: inline-flex;
   align-items: center;
-  min-height: 2.2rem;
-  padding: 0 0.9rem;
+  width: fit-content;
+  min-height: 1.9rem;
+  padding: 0 0.7rem;
   border-radius: 999px;
-  background: var(--surface-soft);
+  background: rgba(63, 114, 175, 0.12);
   color: var(--accent-dark);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .slide-hint {
@@ -489,6 +521,31 @@ p {
 
 .workflow-intro-panel {
   margin-bottom: 0.2rem;
+}
+
+.workflow-system-band {
+  gap: 1rem;
+}
+
+.workflow-subsection {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(17, 45, 78, 0.12);
+}
+
+.workflow-subsection-head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.workflow-subsection-head h2 {
+  font-size: clamp(1.45rem, 2.8vw, 2.1rem);
+}
+
+.workflow-subsection-copy {
+  max-width: 58rem;
 }
 
 .flow-toolbar {
@@ -953,12 +1010,10 @@ p {
 }
 
 @media (max-width: 1080px) {
-  .overview-hero,
-  .overview-grid,
   .card-grid,
-  .stat-strip,
+  .backend-role-grid,
   .developer-grid,
-  .backend-role-grid {
+  .system-map-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1000,11 +1055,7 @@ p {
     justify-content: start;
   }
 
-  .developer-banner {
-    flex-direction: column;
-    align-items: start;
-  }
-
+  .developer-banner,
   .developer-card-head {
     flex-direction: column;
     align-items: start;
