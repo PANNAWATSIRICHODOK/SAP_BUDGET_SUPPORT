@@ -11,8 +11,7 @@
   --radius-xl: 28px;
   --radius-lg: 20px;
   --radius-md: 14px;
-  --frame-width: 1420px;
-  --content-width: 1480px;
+  --content-width: 1120px;
 }
 
 *,
@@ -98,9 +97,13 @@ p {
   background: rgba(219, 226, 239, 0.95);
 }
 
-.frame {
-  width: min(calc(100% - 2rem), var(--frame-width));
+.frame,
+.slide {
+  width: min(calc(100% - 2rem), var(--content-width));
   margin: 0 auto;
+}
+
+.frame {
   position: fixed;
   top: 1rem;
   left: 0;
@@ -122,11 +125,6 @@ p {
     box-shadow 220ms ease;
   transform: translateY(0);
   opacity: 1;
-}
-
-.slide {
-  width: min(calc(100% - 2rem), var(--content-width));
-  margin: 0 auto;
 }
 
 .frame.is-hidden {
@@ -231,7 +229,7 @@ p {
 
 .slide {
   display: grid;
-  min-height: calc(100vh - 7.2rem);
+  min-height: auto;
   padding: 0;
   scroll-margin-top: 6.8rem;
 }
@@ -243,8 +241,6 @@ p {
 .slide-content {
   display: grid;
   gap: 1.2rem;
-  min-height: calc(100vh - 7.2rem);
-  align-content: start;
 }
 
 .eyebrow {
@@ -261,11 +257,19 @@ p {
 
 .panel,
 .card,
-.summary-band {
+.summary-band,
+.stat-card,
+.flow-node {
   border: 1px solid var(--line);
   background: var(--surface);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
+}
+
+.overview-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.8fr);
+  gap: 1rem;
 }
 
 .panel,
@@ -275,32 +279,36 @@ p {
   border-radius: var(--radius-lg);
 }
 
+.stat-strip,
+.overview-grid,
 .card-grid {
   display: grid;
   gap: 1rem;
 }
 
-.card,
-.system-map-card,
-.backend-role-card,
-.developer-card,
-.flow-meta-card,
-.flow-side-card,
-.flow-rule-card {
-  min-width: 0;
+.stat-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.card h2,
-.system-map-card h2,
-.backend-role-card h2,
-.developer-card h2,
-.flow-detail h2 {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+.stat-card {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.94);
 }
 
-.overview-summary-band {
-  gap: 1rem;
+.stat-value {
+  display: block;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: 2rem;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.overview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .overview-tabs {
@@ -355,6 +363,10 @@ p {
   animation: detailPulse 240ms ease;
 }
 
+.overview-summary-band {
+  gap: 1rem;
+}
+
 .developer-banner {
   display: flex;
   align-items: center;
@@ -383,20 +395,6 @@ p {
   font-weight: 800;
   letter-spacing: 0.04em;
   white-space: nowrap;
-}
-
-.developer-group {
-  display: grid;
-  gap: 1rem;
-}
-
-.developer-group-head {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.developer-group-head p {
-  color: var(--muted);
 }
 
 .developer-grid {
@@ -462,20 +460,6 @@ p {
   color: var(--ink);
 }
 
-.developer-card-sql {
-  display: grid;
-  gap: 0.55rem;
-  margin-top: 0.15rem;
-}
-
-.developer-card-sql p {
-  color: var(--muted);
-}
-
-.developer-card-sql .code-dropdown-list {
-  margin-top: 0;
-}
-
 .backend-role-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -500,51 +484,31 @@ p {
   color: var(--ink);
 }
 
-.backend-role-sql {
+.clean-list {
   display: grid;
-  gap: 0.55rem;
-  margin-top: 0.15rem;
-}
-
-.backend-role-sql p {
+  gap: 0.7rem;
+  margin: 0.9rem 0 0;
+  padding-left: 1.15rem;
   color: var(--muted);
 }
 
-.backend-role-sql .code-dropdown-list {
-  margin-top: 0;
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
 }
 
-.system-map-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.system-map-card {
-  display: grid;
-  gap: 0.55rem;
-  padding: 1.2rem;
-  border: 1px solid rgba(17, 45, 78, 0.08);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 14px 28px rgba(17, 45, 78, 0.05);
-}
-
-.system-map-card p {
-  color: var(--muted);
-}
-
-.system-file-kicker {
+.chip-row span {
   display: inline-flex;
   align-items: center;
-  width: fit-content;
-  min-height: 1.9rem;
-  padding: 0 0.7rem;
+  min-height: 2.2rem;
+  padding: 0 0.9rem;
   border-radius: 999px;
-  background: rgba(63, 114, 175, 0.12);
+  background: var(--surface-soft);
   color: var(--accent-dark);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .slide-hint {
@@ -569,31 +533,6 @@ p {
 
 .workflow-intro-panel {
   margin-bottom: 0.2rem;
-}
-
-.workflow-system-band {
-  gap: 1rem;
-}
-
-.workflow-subsection {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(17, 45, 78, 0.12);
-}
-
-.workflow-subsection-head {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.workflow-subsection-head h2 {
-  font-size: clamp(1.45rem, 2.8vw, 2.1rem);
-}
-
-.workflow-subsection-copy {
-  max-width: 58rem;
 }
 
 .flow-toolbar {
@@ -692,10 +631,29 @@ p {
     background 180ms ease;
 }
 
+.flow-chip::after {
+  content: "";
+  position: absolute;
+  left: 0.85rem;
+  right: 0.85rem;
+  bottom: 0.55rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(63, 114, 175, 0.7), rgba(17, 45, 78, 0.9));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 220ms ease;
+}
+
 .flow-chip:hover,
 .flow-chip:focus-visible {
   transform: translateY(-2px);
   border-color: rgba(63, 114, 175, 0.28);
+}
+
+.flow-chip.is-complete::after,
+.flow-chip.is-active::after {
+  transform: scaleX(1);
 }
 
 .flow-chip.is-complete {
@@ -859,18 +817,6 @@ p {
   margin-top: 0.95rem;
 }
 
-.flow-rule-groups,
-.flow-code-groups {
-  display: grid;
-  gap: 1rem;
-}
-
-.flow-rule-group,
-.flow-code-group {
-  display: grid;
-  gap: 0.2rem;
-}
-
 .flow-rule-card {
   position: relative;
   display: grid;
@@ -959,15 +905,6 @@ p {
   display: grid;
   gap: 0.7rem;
   margin-top: 0.9rem;
-}
-
-.code-dropdown-empty {
-  padding: 0.9rem 1rem;
-  border: 1px dashed rgba(17, 45, 78, 0.16);
-  border-radius: 16px;
-  background: rgba(249, 247, 247, 0.78);
-  color: var(--muted);
-  font-size: 0.92rem;
 }
 
 .code-dropdown {
@@ -1060,10 +997,12 @@ p {
 }
 
 @media (max-width: 1080px) {
+  .overview-hero,
+  .overview-grid,
   .card-grid,
-  .backend-role-grid,
+  .stat-strip,
   .developer-grid,
-  .system-map-grid {
+  .backend-role-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1090,15 +1029,15 @@ p {
 }
 
 @media (max-width: 720px) {
+  .frame,
+  .slide {
+    width: min(calc(100% - 1rem), var(--content-width));
+  }
+
   .frame {
-    width: min(calc(100% - 1rem), var(--frame-width));
     border-radius: 20px;
     align-items: start;
     flex-direction: column;
-  }
-
-  .slide {
-    width: min(calc(100% - 1rem), var(--content-width));
   }
 
   .frame-nav {
@@ -1110,7 +1049,11 @@ p {
     justify-content: start;
   }
 
-  .developer-banner,
+  .developer-banner {
+    flex-direction: column;
+    align-items: start;
+  }
+
   .developer-card-head {
     flex-direction: column;
     align-items: start;

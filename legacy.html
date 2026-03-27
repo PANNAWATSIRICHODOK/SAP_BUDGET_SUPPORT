@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive two-layer budget control presentation for SAP Business One"
+    />
+    <title>SAP Budget Control Presentation - Legacy</title>
+    <link rel="stylesheet" href="./legacy.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+
+      <header class="frame">
+        <div class="frame-brand">
+          <span class="frame-kicker">Budget Flow</span>
+          <strong>SAP Business One Presentation</strong>
+        </div>
+        <div class="frame-actions">
+          <nav class="frame-nav" aria-label="Section navigation">
+            <a href="#overview">Overview</a>
+            <a href="#workflow">Workflow</a>
+            <a href="#ndbs-workflow">NDBS Workflow</a>
+          </nav>
+          <div class="frame-switch" aria-label="Version switch">
+            <a href="./index.html" title="Current version">Current</a>
+            <a class="is-active" href="./legacy.html" aria-current="page" title="d4a6612 add NDBS_BUDGET_CONTROL">Legacy</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="slides" id="slides">
+        <section class="slide" id="overview" data-label="Overview">
+          <div class="slide-content">
+            <p class="eyebrow">Overview</p>
+            <h1>ระบบนี้คุมงบ 2 ชั้น ก่อนผ่านไปเป็นรายการเงินจริง</h1>
+            <p class="lead">
+              ระบบนี้แบ่งเป็น 2 ด่าน คือ
+              <strong>ด่านตรวจข้อมูลต้นทาง</strong> ที่เช็กว่าข้อมูลพร้อมหรือยัง และ
+              <strong>ด่านคุมงบขั้นสุดท้าย</strong> ที่เริ่มจองงบ ตัดงบ และอัปเดตงบคงเหลือจริงก่อนบันทึก
+            </p>
+
+            <div class="stat-strip">
+              <article class="stat-card">
+                <span class="stat-value">6</span>
+                <span class="stat-label">เอกสารใน main flow</span>
+              </article>
+              <article class="stat-card">
+                <span class="stat-value">2</span>
+                <span class="stat-label">control layers</span>
+              </article>
+              <article class="stat-card">
+                <span class="stat-value">2</span>
+                <span class="stat-label">budget ledgers</span>
+              </article>
+            </div>
+
+            <div class="overview-grid">
+              <article class="panel">
+                <h2>ถ้าไม่ผ่าน</h2>
+                <p>เอกสารถูก block ได้ทั้งตอนด่านตรวจข้อมูลต้นทาง และตอนด่านคุมงบขั้นสุดท้าย</p>
+              </article>
+              <article class="panel">
+                <h2>ถ้าผ่าน</h2>
+                <p>ระบบจะเขียน movement ลง ledger และ recalculation งบคงเหลือให้เอกสารนั้นทันที</p>
+              </article>
+            </div>
+
+            <article class="overview-tabs panel">
+              <div class="overview-tab-list" role="tablist" aria-label="Overview audience views">
+                <button
+                  class="overview-tab is-active"
+                  id="overview-tab-business"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="overview-panel-business"
+                  data-panel="business"
+                >
+                  Business
+                </button>
+                <button
+                  class="overview-tab"
+                  id="overview-tab-developer"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="overview-panel-developer"
+                  data-panel="developer"
+                >
+                  Developer
+                </button>
+              </div>
+
+              <section
+                class="overview-tab-panel is-active"
+                id="overview-panel-business"
+                role="tabpanel"
+                aria-labelledby="overview-tab-business"
+              >
+                <article class="summary-band overview-summary-band">
+                  <strong>สถาปัตยกรรม 2 ชั้น</strong>
+                  <div class="card-grid">
+                    <article class="card">
+                      <h2>ชั้นที่ 1: ด่านตรวจข้อมูลต้นทาง</h2>
+                      <p>เช็กว่าข้อมูลพร้อมหรือยัง เช่น ฝ่าย ปีงบ และมี budget setup รองรับหรือไม่</p>
+                    </article>
+                    <article class="card">
+                      <h2>ชั้นที่ 2: ด่านคุมงบขั้นสุดท้าย</h2>
+                      <p>เริ่มจองงบ ตัดงบ กลับรายการ และอัปเดตงบคงเหลือใน ledger จริง</p>
+                    </article>
+                    <article class="card">
+                      <h2>ผลลัพธ์</h2>
+                      <p>เอกสารจะบันทึกได้ก็ต่อเมื่อผ่านทั้งการตรวจข้อมูลต้นทางและการคุมงบขั้นสุดท้าย</p>
+                    </article>
+                  </div>
+                </article>
+
+                <article class="summary-band overview-summary-band">
+                  <strong>ระบบจะเช็ก 3 เรื่องหลัก</strong>
+                  <div class="card-grid">
+                    <article class="card">
+                      <h2>ฝ่าย / เจ้าของงบ</h2>
+                      <p>เอกสารต้องชี้ให้ชัดว่ารายการนี้เป็นความรับผิดชอบของหน่วยงานไหน</p>
+                    </article>
+                    <article class="card">
+                      <h2>ปีงบ</h2>
+                      <p>เอกสารต้องอยู่ในปีงบที่กำหนด ไม่ใช่ข้ามหรือหลุดจากกรอบที่ต้องคุม</p>
+                    </article>
+                    <article class="card">
+                      <h2>มีงบและมียอดคงเหลือ</h2>
+                      <p>ชั้นแรกเช็กว่ามีงบรองรับ ส่วนชั้นสุดท้ายจะไปแตะยอดคงเหลือจริงของงบ</p>
+                    </article>
+                  </div>
+                </article>
+
+                <article class="summary-band overview-summary-band">
+                  <strong>เอกสารที่ถูกคุมในภาพรวม</strong>
+                  <div class="chip-row">
+                    <span>Draft</span>
+                    <span>PR</span>
+                    <span>PO</span>
+                    <span>AP Invoice</span>
+                    <span>AP Credit Memo</span>
+                    <span>JE</span>
+                  </div>
+                  <p class="summary-note">
+                    ในด่านคุมงบขั้นสุดท้าย ยังมี logic เพิ่มสำหรับ <code>GRPO</code> และ <code>Goods Return</code>
+                    แม้ไม่ได้อยู่ใน main flow presentation นี้
+                  </p>
+                </article>
+
+                <article class="summary-band overview-summary-band">
+                  <strong>เอกสารแต่ละตัวไปทำอะไรกับงบหลังบ้าน</strong>
+                  <p class="summary-note">
+                    ส่วนนี้อธิบายเฉพาะเอกสารที่เริ่มขยับงบจริงในด่านคุมงบขั้นสุดท้าย ส่วน
+                    <code>Draft</code> และ <code>PR</code> ยังอยู่ฝั่งตรวจข้อมูลต้นทางเป็นหลัก
+                  </p>
+
+                  <div class="backend-role-grid">
+                    <article class="backend-role-card">
+                      <h2>PO</h2>
+                      <p><strong>หน้าที่หลัก:</strong> จองงบไว้ก่อนซื้อจริง</p>
+                      <p>เมื่อบันทึกเอกสาร ระบบจะกันวงเงินไว้ให้หน่วยงานหรือโครงการนั้นทันที เพื่อไม่ให้ยอดถูกใช้ซ้ำ</p>
+                      <p>ถ้าเป็นรายการของโครงการและวงเงินไม่พอ เอกสารจะยังไม่ผ่านจนกว่าจะมีงบเพียงพอ</p>
+                    </article>
+
+                    <article class="backend-role-card">
+                      <h2>GRPO</h2>
+                      <p><strong>หน้าที่หลัก:</strong> เปลี่ยนงบที่กันไว้ให้กลายเป็นการใช้จริง</p>
+                      <p>เมื่อรับของจริง ระบบจะย้ายยอดจากส่วนที่กันไว้ ไปเป็นยอดที่ถือว่าเริ่มใช้จริงตามสินค้าที่รับ</p>
+                      <p>จุดนี้ทำให้งบย้ายจาก “กันไว้” ไปเป็น “ใช้จริง”</p>
+                    </article>
+
+                    <article class="backend-role-card">
+                      <h2>A/P Invoice</h2>
+                      <p><strong>หน้าที่หลัก:</strong> รับรู้ค่าใช้จ่ายจริง</p>
+                      <p>ถ้าอ้างจาก PO หรือ GRPO ระบบจะเปลี่ยนยอดที่กันไว้ให้กลายเป็นค่าใช้จ่ายจริงตามยอดเจ้าหนี้ที่บันทึก</p>
+                      <p>ถ้าเอกสารถูกยกเลิก ระบบจะคืนผลกระทบทางงบและคำนวณยอดคงเหลือใหม่ให้อัตโนมัติ</p>
+                    </article>
+
+                    <article class="backend-role-card">
+                      <h2>Goods Return</h2>
+                      <p><strong>หน้าที่หลัก:</strong> ปรับยอดใช้จริงเมื่อมีการคืนของ</p>
+                      <p>เมื่อมีการคืนของ ระบบจะปรับยอดใช้จริงให้สอดคล้องกับปริมาณและมูลค่าที่คืนกลับ</p>
+                      <p>จุดนี้ช่วยให้ยอดใช้งบสะท้อนสถานะของการรับคืนสินค้า</p>
+                    </article>
+
+                    <article class="backend-role-card">
+                      <h2>A/P Credit Memo</h2>
+                      <p><strong>หน้าที่หลัก:</strong> คืนงบจากรายการที่เคยรับรู้ไปแล้ว</p>
+                      <p>ถ้ามีเอกสารอ้างอิง ระบบจะย้อนผลจากรายการเดิม แต่ถ้าไม่มี ระบบจะคืนผลกระทบของงบจากรายการนั้นโดยตรง</p>
+                      <p>จุดนี้ทำหน้าที่คืนงบหรือหักกลับจากรายการที่รับรู้ไปแล้ว</p>
+                    </article>
+
+                    <article class="backend-role-card">
+                      <h2>JE</h2>
+                      <p><strong>หน้าที่หลัก:</strong> ตัดงบตรงจากบัญชี</p>
+                      <p>JE ไม่ได้เริ่มจากการกันวงเงินก่อน แต่จะกระทบงบจริงทันทีหลังผ่านการตรวจข้อมูลต้นทาง</p>
+                      <p>เหมาะกับรายการที่เข้าทางบัญชีโดยตรงและต้องสะท้อนผลในงบเลย</p>
+                    </article>
+                  </div>
+                </article>
+              </section>
+
+              <section
+                class="overview-tab-panel"
+                id="overview-panel-developer"
+                role="tabpanel"
+                aria-labelledby="overview-tab-developer"
+                hidden
+              >
+                <article class="developer-banner">
+                  <span class="developer-badge">ต้องรีบแก้</span>
+                  <p>6 จุดนี้มีความเสี่ยงทำให้ flow งบผิด, หลุดด่านคุมงบขั้นสุดท้าย, หรือคุม over budget ไม่ตรงที่ตั้งใจ</p>
+                </article>
+
+                <div class="developer-grid">
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:486-491</span>
+                    </div>
+                    <h2>PR branch ในด่านคุมงบขั้นสุดท้ายดูเหมือนเข้าไม่ถึง</h2>
+                    <p><strong>ปัญหา:</strong> outer <code>IF</code> ไม่รวม <code>1470000113</code> แต่ด้านในยังมี <code>Call NDBS_BUDGET_PR</code></p>
+                    <p><strong>ผลกระทบ:</strong> PR อาจผ่านแค่ด่านต้นทาง แต่ไม่เข้าด่านคุมงบขั้นสุดท้ายตามที่ตั้งใจ</p>
+                    <p><strong>ควรแก้:</strong> ปรับเงื่อนไข outer <code>IF</code> หรือย้าย call ของ PR ออกมาให้ reachable จริง</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:603-614</span>
+                    </div>
+                    <h2>Department over-budget block ถูก comment ไว้</h2>
+                    <p><strong>ปัญหา:</strong> ฝั่ง department มีบรรทัด <code>error = -32</code> และ <code>error_message</code> ที่ถูก comment ออก</p>
+                    <p><strong>ผลกระทบ:</strong> พฤติกรรมคุมงบอาจไม่เท่ากันระหว่าง department กับ project</p>
+                    <p><strong>ควรแก้:</strong> ยืนยัน business rule ว่าต้อง block หรือไม่ แล้วเปิดใช้ logic ให้สอดคล้องทั้งสองฝั่ง</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:2014-2050</span>
+                    </div>
+                    <h2>Project condition ใช้ OR เสี่ยงเข้าทางผิด</h2>
+                    <p><strong>ปัญหา:</strong> ใช้ <code>IF (Project IS NOT NULL) OR (Project != '')</code> ใน APCN project path</p>
+                    <p><strong>ผลกระทบ:</strong> เอกสารอาจถูกมองว่าเป็น project line ทั้งที่ค่า project ไม่สมบูรณ์</p>
+                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>AND</code> หรือ normalize ค่าก่อนเช็กทุก branch ที่เกี่ยวข้อง</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">Budget.sql:180-195</span>
+                    </div>
+                    <h2>Draft เช็กตัวแปรผิด</h2>
+                    <p><strong>ปัญหา:</strong> query เก็บผลลง <code>cnt1</code> แต่เงื่อนไขกลับเช็ก <code>cnt</code></p>
+                    <p><strong>ผลกระทบ:</strong> draft อาจถูก block ผิด หรือหลุดการตรวจปีงบได้</p>
+                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>If :cnt1 &gt; 0 Then</code> และ retest draft ทุกประเภท</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-urgent">Urgent</span>
+                      <span class="developer-ref">Budget.sql:168-189</span>
+                    </div>
+                    <h2>Draft อ้างอิง ObjType น่าจะผิด</h2>
+                    <p><strong>ปัญหา:</strong> ใช้ <code>1470000049</code> ในจุดที่น่าจะตั้งใจคุม PR draft</p>
+                    <p><strong>ผลกระทบ:</strong> draft บางประเภทอาจไม่โดนตรวจ หรือไปตรวจเอกสารผิดประเภท</p>
+                    <p><strong>ควรแก้:</strong> ยืนยัน object type ที่ถูกต้อง ถ้าตั้งใจคุม PR ให้ตรวจเทียบกับ <code>1470000113</code></p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">Budget.sql:464-541</span>
+                    </div>
+                    <h2>กติกา Budget Year ไม่สอดคล้องกัน</h2>
+                    <p><strong>ปัญหา:</strong> PO ใช้ <code>LEFT(...,3) &lt;&gt; '202'</code> แต่ AP และ JE ใช้ <code>&lt; '2024'</code></p>
+                    <p><strong>ผลกระทบ:</strong> เอกสารแต่ละประเภทอาจผ่านหรือไม่ผ่านต่างกันทั้งที่ใช้ปีงบเดียวกัน</p>
+                    <p><strong>ควรแก้:</strong> กำหนด rule ปีงบกลางแบบเดียว แล้วใช้ซ้ำทุกเอกสาร</p>
+                  </article>
+                </div>
+              </section>
+            </article>
+
+            <p class="slide-hint">เลื่อนลงเพื่อดูว่าแต่ละเอกสารถูกคุมอย่างไรตั้งแต่ด่านต้นทางไปจนถึงด่านคุมงบขั้นสุดท้าย</p>
+          </div>
+        </section>
+
+        <section class="slide" id="workflow" data-label="Workflow">
+          <div class="slide-content">
+            <p class="eyebrow">Workflow</p>
+            <h1>Flow ที่เห็นทั้งความเชื่อมโยงและเหตุผลที่ถูก block</h1>
+
+            <article class="workflow-intro-panel panel">
+              <p>
+                คลิกแต่ละเอกสารเพื่อดูว่าเชื่อมกับขั้นก่อนหน้าและขั้นถัดไปอย่างไร
+                เอกสารถูกตรวจอะไรบ้างก่อนบันทึก และเมื่อผ่านแล้วงบจะเริ่มถูกขยับจริงอย่างไร
+              </p>
+            </article>
+
+            <div class="flow-toolbar">
+              <div class="flow-stage-status">
+                <span class="flow-stage-position" id="flow-stage-position">1 / 6</span>
+                <strong id="flow-stage-caption">Draft Gate</strong>
+              </div>
+              <div class="flow-nav">
+                <button class="flow-nav-button" id="flow-prev" type="button" aria-label="Previous stage">
+                  ก่อนหน้า
+                </button>
+                <button class="flow-nav-button" id="flow-next" type="button" aria-label="Next stage">
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+
+            <div class="flow-map" id="flow-map">
+              <button class="flow-chip is-active" type="button" data-stage="draft">
+                <span class="flow-chip-index">1</span>
+                <span class="flow-chip-label">Draft</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="pr">
+                <span class="flow-chip-index">2</span>
+                <span class="flow-chip-label">PR</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="po">
+                <span class="flow-chip-index">3</span>
+                <span class="flow-chip-label">PO</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="ap">
+                <span class="flow-chip-index">4</span>
+                <span class="flow-chip-label">AP / APCN</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="je">
+                <span class="flow-chip-index">5</span>
+                <span class="flow-chip-label">JE</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip flow-chip-final" type="button" data-stage="final">
+                <span class="flow-chip-index">6</span>
+                <span class="flow-chip-label">Final</span>
+              </button>
+            </div>
+
+            <article class="flow-detail panel" id="flow-detail">
+              <div class="flow-detail-head">
+                <p class="eyebrow" id="flow-detail-kicker">Stage 1</p>
+                <h2 id="flow-detail-title">Draft</h2>
+                <p id="flow-detail-summary">
+                  เอกสารร่างถูกคุมก่อนเกิดเอกสารจริง เพื่อกันข้อมูล budget ที่ยังไม่พร้อม
+                </p>
+                <div class="flow-tag-row" id="flow-detail-tags"></div>
+              </div>
+
+              <div class="flow-meta-grid">
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมจาก</span>
+                  <strong id="flow-detail-from">เริ่มต้นของรายการ</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมไป</span>
+                  <strong id="flow-detail-to">PR / PO / เอกสารจริง</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">ถ้าโดน block</span>
+                  <strong id="flow-detail-impact">ยังไม่พร้อมไปขั้นถัดไป</strong>
+                </article>
+              </div>
+
+              <div class="flow-detail-body">
+                <div class="flow-blocks-panel">
+                  <div class="flow-panel-head">
+                    <span class="flow-meta-label">Store Rules</span>
+                    <p id="flow-rule-caption">4 จุดที่ store ใช้ block draft</p>
+                  </div>
+                  <div class="flow-rule-stack" id="flow-detail-rules"></div>
+                </div>
+                <div class="flow-side-stack">
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">ถ้าผ่าน</span>
+                    <p id="flow-detail-pass">
+                      ผ่านแล้ว draft พร้อมใช้เป็นฐานของเอกสารถัดไป แต่ระบบไม่ได้สร้างเอกสารถัดไปให้อัตโนมัติ
+                    </p>
+                  </article>
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">หมายเหตุ Flow</span>
+                    <p id="flow-detail-note">store นี้ทำหน้าที่อนุญาตหรือไม่อนุญาตให้บันทึกเอกสารในขั้นนั้น</p>
+                  </article>
+                  <div class="flow-code-panel">
+                    <span class="flow-meta-label">Code refs / SQL</span>
+                    <p class="flow-code-hint">กดเพื่อดูทั้งโค้ดด่านต้นทางและด่านคุมงบขั้นสุดท้ายของช่วงนั้น</p>
+                    <div class="code-dropdown-list" id="flow-detail-codes"></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <p class="workflow-note">
+              มุมมองนี้ทำให้เห็นพร้อมกัน 4 อย่าง: เชื่อมจากไหน, ไปต่อไหน, ถูก block ตรงไหน, และงบถูกขยับเมื่อไร
+            </p>
+          </div>
+        </section>
+
+        <section class="slide" id="ndbs-workflow" data-label="NDBS Workflow">
+          <div class="slide-content">
+            <p class="eyebrow">Final Budget Flow</p>
+            <h1>Workflow ภายในด่านคุมงบขั้นสุดท้ายที่เริ่มขยับงบจริง</h1>
+
+            <article class="workflow-intro-panel panel">
+              <p>
+                ส่วนนี้แยกให้เห็นเฉพาะ flow ภายในด่านคุมงบขั้นสุดท้าย ว่าหลังผ่านด่านตรวจข้อมูลต้นทางแล้ว
+                ระบบจะรับ transaction ไป route, จองงบ, ตัดงบ, reverse งบ และ cleanup อย่างไร
+              </p>
+            </article>
+
+            <div class="flow-toolbar">
+              <div class="flow-stage-status">
+                <span class="flow-stage-position" id="ndbs-flow-stage-position">1 / 6</span>
+                <strong id="ndbs-flow-stage-caption">Entry Log</strong>
+              </div>
+              <div class="flow-nav">
+                <button class="flow-nav-button" id="ndbs-flow-prev" type="button" aria-label="Previous NDBS stage">
+                  ก่อนหน้า
+                </button>
+                <button class="flow-nav-button" id="ndbs-flow-next" type="button" aria-label="Next NDBS stage">
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+
+            <div class="flow-map" id="ndbs-flow-map">
+              <button class="flow-chip is-active" type="button" data-stage="entry">
+                <span class="flow-chip-index">1</span>
+                <span class="flow-chip-label">Entry</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="route">
+                <span class="flow-chip-index">2</span>
+                <span class="flow-chip-label">Route</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="reserve">
+                <span class="flow-chip-index">3</span>
+                <span class="flow-chip-label">Reserve</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="actual">
+                <span class="flow-chip-index">4</span>
+                <span class="flow-chip-label">Actual</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip" type="button" data-stage="reverse">
+                <span class="flow-chip-index">5</span>
+                <span class="flow-chip-label">Reverse</span>
+              </button>
+              <span class="flow-connector" aria-hidden="true"></span>
+
+              <button class="flow-chip flow-chip-final" type="button" data-stage="finalize">
+                <span class="flow-chip-index">6</span>
+                <span class="flow-chip-label">Finalize</span>
+              </button>
+            </div>
+
+            <article class="flow-detail panel" id="ndbs-flow-detail">
+              <div class="flow-detail-head">
+                <p class="eyebrow" id="ndbs-flow-detail-kicker">Stage 1</p>
+                <h2 id="ndbs-flow-detail-title">Entry</h2>
+                <p id="ndbs-flow-detail-summary">
+                  transaction ที่ผ่านด่านตรวจข้อมูลต้นทางแล้วจะถูกส่งเข้ามาในด่านคุมงบขั้นสุดท้าย และเริ่ม trace ก่อน route ต่อ
+                </p>
+                <div class="flow-tag-row" id="ndbs-flow-detail-tags"></div>
+              </div>
+
+              <div class="flow-meta-grid">
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมจาก</span>
+                  <strong id="ndbs-flow-detail-from">ด่านตรวจข้อมูลต้นทาง</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">เชื่อมไป</span>
+                  <strong id="ndbs-flow-detail-to">route ตาม object type</strong>
+                </article>
+                <article class="flow-meta-card">
+                  <span class="flow-meta-label">ถ้าโดน block</span>
+                  <strong id="ndbs-flow-detail-impact">transaction ยังไม่ commit</strong>
+                </article>
+              </div>
+
+              <div class="flow-detail-body">
+                <div class="flow-blocks-panel">
+                  <div class="flow-panel-head">
+                    <span class="flow-meta-label">Procedure Rules</span>
+                    <p id="ndbs-flow-rule-caption">ขั้นแรกของด่านคุมงบขั้นสุดท้าย</p>
+                  </div>
+                  <div class="flow-rule-stack" id="ndbs-flow-detail-rules"></div>
+                </div>
+                <div class="flow-side-stack">
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">ถ้าผ่าน</span>
+                    <p id="ndbs-flow-detail-pass">
+                      procedure จะเข้าสู่ branch ของเอกสารนั้นและเริ่มเขียน movement งบตามสถานะจริง
+                    </p>
+                  </article>
+                  <article class="flow-side-card">
+                    <span class="flow-meta-label">หมายเหตุ Flow</span>
+                    <p id="ndbs-flow-detail-note">
+                      สไลด์นี้เป็น flow ภายใน procedure ไม่ใช่ flow เอกสารของผู้ใช้
+                    </p>
+                  </article>
+                  <div class="flow-code-panel">
+                    <span class="flow-meta-label">Code refs / SQL</span>
+                    <p class="flow-code-hint">กดเพื่อดูโค้ดของด่านคุมงบขั้นสุดท้ายในแต่ละช่วง</p>
+                    <div class="code-dropdown-list" id="ndbs-flow-detail-codes"></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <p class="workflow-note">
+              มุมมองนี้โฟกัสเฉพาะ procedure ชั้นสุดท้าย ว่า reserve, actual, reverse และ cleanup เกิดตรงไหนในโค้ด
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./legacy.js"></script>
+  </body>
+</html>
