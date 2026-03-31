@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Forensic report for SAP Business One budget add-on slowdown and NDBS budget data defects"
+    />
+    <title>รายงานปัญหา</title>
+    <link rel="stylesheet" href="../assets/css/problem-report.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+
+    <header class="frame">
+      <div class="frame-brand">
+        <span class="frame-kicker">SBO_JBF / NDBS</span>
+        <strong>Budget Add-on Forensic Report</strong>
+      </div>
+      <div class="frame-actions">
+        <div class="frame-switch" aria-label="Version switch">
+          <a href="./addons-budget-flow.html" title="flow ของ addons budget">flow ของ addons budget</a>
+          <a class="is-active" href="./problem-report.html" aria-current="page" title="รายงานปัญหา">รายงานปัญหา</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="slides">
+      <section class="slide hero" id="summary">
+        <div class="hero-copy panel panel-hero">
+          <p class="eyebrow">Summary</p>
+          <h1 class="report-title">Login เข้าแล้ว Budget ทำงานทันที</h1>
+          <p class="lead">
+            เราใส่ <code>INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE"</code> ไว้ใน
+            <code>NDBS_BUDGET_CONTROL</code> และ <code>NDBS_UpdateAllBudgetAmount</code> เพื่อดูว่า add-on ถูกเรียกเมื่อใด
+            จากนั้นล้าง table แล้ว login เข้า SAP โดยยังไม่เปิดเอกสารหรือเริ่ม transaction ใด ๆ แต่ใน
+            <code>NDBS_LOGIN_TRACE</code> กลับมีข้อมูลถูก insert เข้ามาทันที จึงยืนยันได้ว่า Budget ถูกเรียกตั้งแต่ช่วง login จริง
+          </p>
+          <div class="trace-reading">
+            <h4>สิ่งที่พิสูจน์ได้จากการทดสอบนี้</h4>
+            <ul>
+              <li>แค่ login เข้า SAP ก็มีการเรียก <code>NDBS_BUDGET_CONTROL</code></li>
+              <li>เมื่อ <code>NDBS_BUDGET_CONTROL</code> ถูกเรียก จะมี <code>NDBS_UpdateAllBudgetAmount</code> ตามมาทันที</li>
+              <li>ทั้งหมดนี้เกิดขึ้นทั้งที่ผู้ใช้ยังไม่ได้เริ่มสร้างเอกสารหรือทำ transaction ใด ๆ</li>
+            </ul>
+          </div>
+          <details class="hero-code-detail panel">
+            <summary>เปิดดูโค้ดและ trace ที่ใช้ยืนยัน</summary>
+            <div class="hero-code-body">
+              <div class="hero-code-stack">
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">Trace in NDBS_BUDGET_CONTROL</span>
+                    <strong>เราใส่ insert เพื่อตรวจว่ามีการ call ตอน login หรือไม่</strong>
+                  </div>
+                  <pre><code>EXEC
+  'INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE" ' ||
+  '("TS","PROC_NAME","OBJECT_TYPE","TRANSACTION_TYPE","DATAKEY","NOTE") VALUES (' ||
+  'CURRENT_TIMESTAMP, ''NDBS_BUDGET_CONTROL'', ... , ''entry'')';</code></pre>
+                </article>
+
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">Runtime trace from login</span>
+                    <strong>ยังไม่เปิดเอกสาร แต่ Budget ถูกเรียกทันที</strong>
+                  </div>
+                  <pre><code>2026-03-31 08:22:30.953  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_main   entry
+2026-03-31 08:22:31.031  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] start
+2026-03-31 08:22:32.523  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] end
+2026-03-31 08:22:32.794  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_m_fms  entry
+2026-03-31 08:22:34.908  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_p_fpc  entry
+2026-03-31 08:22:37.286  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_s_fst  entry</code></pre>
+                </article>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="slide section" id="slowdown">
+        <div class="section-head">
+          <p class="eyebrow">Slow Flow</p>
+          <h2>Flow ที่ทำให้ SAP ช้า</h2>
+          <p>ประเด็นสำคัญมีแค่เส้นทางนี้: <code>Login -> NDBS_BUDGET_CONTROL -> NDBS_UpdateAllBudgetAmount -> for loop ทั้งชุด</code></p>
+        </div>
+
+        <div class="impact-grid">
+          <article class="impact-card panel">
+            <h3>1. NDBS_BUDGET_CONTROL ทำอะไร</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>if :error = 0 then
+  IF ( :object_type in ('30','22','21','20','18','19')) then
+    ...
+    INSERT INTO "NDBS_BGC_OBDE" ...
+    INSERT INTO "NDBS_BGC_OBPE" ...
+    Call NDBS_UpdateBudgetAmount(...)
+  end if;
+end if;</code></pre>
+            </details>
+            <p>
+              ตัวนี้เป็น budget control หลักของระบบ เมื่อถูกเรียกจะวิ่งแตก logic ตามประเภทเอกสาร แล้วเขียน movement
+              ลงตาราง budget เช่น <code>NDBS_BGC_OBDE</code> และ <code>NDBS_BGC_OBPE</code> พร้อมอัปเดตยอด budget บางส่วนระหว่างทาง
+            </p>
+          </article>
+          <article class="impact-card panel">
+            <h3>2. เมื่อ NDBS_BUDGET_CONTROL ทำงานก็จะไปเรียกใช้ NDBS_UpdateAllBudgetAmount ต่อ</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+<span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span></code></pre>
+            </details>
+            <p>
+              แปลว่าเมื่อ budget control ทำงานเสร็จ ระบบจะไม่หยุดแค่นั้น แต่จะไปเรียก
+              <code>NDBS_UpdateAllBudgetAmount</code> ต่อทันที เพื่อคำนวณงบใหม่ทั้งก้อน จึงทำให้ช่วง login กลายเป็นงานหนักทันที
+            </p>
+          </article>
+          <article class="impact-card panel">
+            <h3>3. NDBS_UpdateAllBudgetAmount เป็นงานหนัก</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
+Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL";
+
+for currloop as loopbudgetdept do
+...
+end for;
+
+for currloop as loopbudgetproj do
+...
+end for;</code></pre>
+            </details>
+            <p>
+              procedure นี้จะวนทีละแถวผ่าน budget department และ budget project ทั้งชุด จากนั้นไป
+              <code>SUM</code> ยอดจาก movement tables แล้ว <code>UPDATE</code> budget master ทีละแถว จึงช้ามากเมื่อข้อมูลเยอะ
+              และยิ่งหนักขึ้นอีกถ้ามีหลาย user login พร้อมกัน
+            </p>
+          </article>
+        </div>
+
+        <div class="panel verdict-panel">
+          <p>
+            สรุปคือ login ไม่ได้เป็นแค่ขั้นตอนเข้าใช้งานธรรมดา แต่ถูกพาไปทำ budget processing ทันที และตอนจบยังโดนสั่ง
+            <code>full refresh</code> ของงบทั้งระบบผ่าน <code>NDBS_UpdateAllBudgetAmount</code> ที่ใช้
+            <code>for loop</code> วนข้อมูลทั้งชุด จึงเป็นเหตุผลหลักที่ทำให้ SAP ช้า
+          </p>
+        </div>
+      </section>
+
+      <section class="slide section" id="wrong-sql">
+        <div class="section-head">
+          <p class="eyebrow">Wrong SQL</p>
+          <h2>SQL ที่ยังผิดและทำให้ข้อมูล budget เพี้ยนได้</h2>
+          <p>เหลือแค่จุดที่สำคัญจริงและกระทบข้อมูลโดยตรง</p>
+        </div>
+
+        <div class="findings-grid">
+          <article class="finding-card panel">
+            <span class="finding-type">Wrong Query</span>
+            <h3>NDBS_UpdateAllBudgetAmount.sql</h3>
+            <pre><code>WHERE "Project" = currloop."U_Project"
+AND "BudgetGroup" = currloop."U_GroupCode"
+<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
+            <p class="finding-impact">เอา project code ไปเทียบกับ <code>BudgetYear</code> โดยตรง ทำให้ยอด budget ฝั่ง project เสี่ยงผิดได้ทันที</p>
+          </article>
+
+          <article class="finding-card panel">
+            <span class="finding-type">Wrong Query</span>
+            <h3>NDBS_UpdateBudgetAmount.sql</h3>
+            <pre><code>WHERE "Project" = currloop."U_Project"
+AND "BudgetGroup" = currloop."U_GroupCode"
+<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
+            <p class="finding-impact">helper ที่ควร update เฉพาะจุดก็ยังใช้ key ผิดแบบเดียวกัน จึงเสี่ยงเพี้ยนซ้ำแม้ไม่วิ่ง full refresh</p>
+          </article>
+        </div>
+
+        <div class="panel verdict-panel">
+          <p>
+            ข้อสรุปสุดท้ายมีแค่ 2 เรื่อง: <strong>Login ทำให้ Budget ทำงานทันทีและลาก full refresh จน SAP ช้า</strong>
+            และ <strong>query ฝั่ง project ใช้ key ผิด จึงทำให้ข้อมูล budget เพี้ยนได้</strong>
+          </p>
+        </div>
+
+        <div class="panel verdict-panel">
+          <h3>ทำไมพอทีม IT แก้ NDBS_UpdateAllBudgetAmount.sql แล้วอาการช้าจึงหายจริง</h3>
+          <p>
+            เพราะจุดที่ถูกแก้คือคอขวดหลักที่ถูกเรียกต่อจาก <code>NDBS_BUDGET_CONTROL</code> ตอน login โดยตรง
+            เดิม procedure นี้ใช้วิธีวน <code>for loop</code> ผ่าน budget ทั้งชุด แล้วค่อย <code>SUM</code> และ <code>UPDATE</code> ทีละแถว
+            แต่ version ที่ทีม IT ปรับใหม่เปลี่ยนเป็นการ <code>UPDATE</code> แบบ set-based ครั้งใหญ่ไม่กี่ครั้งแทน
+          </p>
+
+          <div class="comparison-grid">
+            <article class="comparison-card">
+              <span>แบบเดิม</span>
+              <strong>ช้าเพราะทำงานแบบทีละแถว</strong>
+              <p>
+                ใช้ cursor สองชุดวิ่งผ่าน budget department และ budget project ทั้งหมด แล้วในแต่ละรอบยังไป
+                <code>SELECT SUM</code> และ <code>UPDATE</code> ซ้ำอีก ทำให้เกิดงานจำนวนมากแบบ row-by-row
+              </p>
+            </article>
+
+            <article class="comparison-card">
+              <span>แบบใหม่</span>
+              <strong>เร็วขึ้นเพราะรวมงานเป็น bulk update</strong>
+              <p>
+                rewrite ให้เหลือการ <code>UPDATE</code> แบบ set-based สองก้อนใหญ่แทนการวนทีละแถว
+                ทำให้ HANA ประมวลผลเป็นชุดเดียวและลด overhead จาก loop ซ้ำ ๆ ลงอย่างมาก
+              </p>
+            </article>
+          </div>
+
+          <p>
+            ดังนั้นเมื่อแก้ <code>NDBS_UpdateAllBudgetAmount.sql</code> แล้วอาการช้าหายไป จึงชี้ได้ชัดว่าคอขวดหลักอยู่ที่ procedure นี้จริง
+            ไม่ใช่แค่เพราะ Budget ถูกเรียกตอน login แต่เป็นเพราะสิ่งที่ procedure นี้ทำหลังถูกเรียกต่างหาก
+            อย่างไรก็ตาม ประเด็นความเร็วที่ดีขึ้นนี้เป็นคนละเรื่องกับประเด็นข้อมูล budget ฝั่ง project ที่ยังเสี่ยงเพี้ยนจาก query key ที่ผิด
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="report-footer" aria-hidden="true"></footer>
+    </div>
+
+    <script src="../assets/js/problem-report.js"></script>
+  </body>
+</html>
