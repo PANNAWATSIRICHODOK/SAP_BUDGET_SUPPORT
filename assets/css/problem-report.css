@@ -87,6 +87,33 @@ pre code {
   font-weight: 500;
 }
 
+pre code .sql-keyword {
+  color: #8dc6ff;
+  font-weight: 700;
+}
+
+pre code .sql-string {
+  color: #a9e7a0;
+}
+
+pre code .sql-identifier {
+  color: #ffd98f;
+}
+
+pre code .sql-param {
+  color: #ffb4cc;
+  font-weight: 700;
+}
+
+pre code .sql-number {
+  color: #f3dc77;
+}
+
+pre code .sql-comment {
+  color: #7fa2c2;
+  font-style: italic;
+}
+
 pre code .code-bad-line {
   display: block;
   width: calc(100% + 0.7rem);
@@ -96,6 +123,26 @@ pre code .code-bad-line {
   border-radius: 0.4rem;
   background: rgba(255, 92, 92, 0.16);
   color: #ffd3d3;
+}
+
+pre code .code-bad-line .sql-keyword {
+  color: #ffe28a;
+}
+
+pre code .code-bad-line .sql-string {
+  color: #d0f0c9;
+}
+
+pre code .code-bad-line .sql-identifier {
+  color: #fff0bf;
+}
+
+pre code .code-bad-line .sql-param {
+  color: #ffd4df;
+}
+
+pre code .code-bad-line .sql-number {
+  color: #ffe7a8;
 }
 
 h1,
@@ -486,6 +533,71 @@ li + li {
   gap: 0.7rem;
 }
 
+.issue-table-wrap {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.issue-table-scroll {
+  overflow-x: auto;
+}
+
+.issue-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.issue-table th,
+.issue-table td {
+  padding: 0.9rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.issue-table th {
+  color: var(--accent-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.issue-table td {
+  color: var(--muted);
+}
+
+.issue-table td:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.issue-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.severity-stack {
+  display: grid;
+  gap: 1.3rem;
+}
+
+.severity-group {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.severity-head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.severity-head h3 {
+  font-size: 1.22rem;
+  line-height: 1.45;
+}
+
 .findings-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -493,6 +605,37 @@ li + li {
 .finding-type {
   background: rgba(181, 82, 82, 0.12);
   color: var(--danger);
+}
+
+.severity-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  width: fit-content;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.severity-low {
+  background: rgba(88, 129, 87, 0.12);
+  color: #355b34;
+}
+
+.severity-medium {
+  background: rgba(175, 132, 63, 0.14);
+  color: #8a5a11;
+}
+
+.severity-high {
+  background: rgba(181, 82, 82, 0.12);
+  color: var(--danger);
+}
+
+.severity-critical {
+  background: rgba(125, 32, 32, 0.14);
+  color: #7d2020;
 }
 
 .finding-impact {

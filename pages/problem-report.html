@@ -154,39 +154,220 @@ end for;</code></pre>
       <section class="slide section" id="wrong-sql">
         <div class="section-head">
           <p class="eyebrow">Wrong SQL</p>
-          <h2>SQL ที่ยังผิดและทำให้ข้อมูล budget เพี้ยนได้</h2>
-          <p>เหลือแค่จุดที่สำคัญจริงและกระทบข้อมูลโดยตรง</p>
-        </div>
-
-        <div class="findings-grid">
-          <article class="finding-card panel">
-            <span class="finding-type">Wrong Query</span>
-            <h3>NDBS_UpdateAllBudgetAmount.sql</h3>
-            <pre><code>WHERE "Project" = currloop."U_Project"
-AND "BudgetGroup" = currloop."U_GroupCode"
-<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
-            <p class="finding-impact">เอา project code ไปเทียบกับ <code>BudgetYear</code> โดยตรง ทำให้ยอด budget ฝั่ง project เสี่ยงผิดได้ทันที</p>
-          </article>
-
-          <article class="finding-card panel">
-            <span class="finding-type">Wrong Query</span>
-            <h3>NDBS_UpdateBudgetAmount.sql</h3>
-            <pre><code>WHERE "Project" = currloop."U_Project"
-AND "BudgetGroup" = currloop."U_GroupCode"
-<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
-            <p class="finding-impact">helper ที่ควร update เฉพาะจุดก็ยังใช้ key ผิดแบบเดียวกัน จึงเสี่ยงเพี้ยนซ้ำแม้ไม่วิ่ง full refresh</p>
-          </article>
+          <h2>SQL ที่พบปัญหา</h2>
+          <p>จัดจากระดับต่ำไปถึงร้ายแรง เพื่อแยกให้ออกว่าอะไรเป็น defect เชิงข้อมูล และอะไรเป็น defect เชิง flow/performance</p>
         </div>
 
         <div class="panel verdict-panel">
           <p>
-            ข้อสรุปสุดท้ายมีแค่ 2 เรื่อง: <strong>Login ทำให้ Budget ทำงานทันทีและลาก full refresh จน SAP ช้า</strong>
-            และ <strong>query ฝั่ง project ใช้ key ผิด จึงทำให้ข้อมูล budget เพี้ยนได้</strong>
+            รีวิวนี้ครอบคลุม <code>SBO_SP_TRANSACTIONNOTIFICATION</code>, <code>NDBS_BUDGETNOTIFICATION</code>,
+            <code>NDBS_BUDGET_BEGINING</code>, <code>NDBS_BUDGET_PR</code>, <code>NDBS_BUDGET_PO</code>,
+            <code>NDBS_BUDGET_CONTROL</code>,
+            <code>NDBS_UpdateBudgetAmount</code> และ <code>NDBS_UpdateAllBudgetAmount</code>
+            โดยส่วนนี้เป็น review ทั้ง codebase ไม่ได้หมายความว่าทุกจุดอยู่ใน incident path ตอน login
+          </p>
+        </div>
+
+        <div class="panel issue-table-wrap">
+          <h3>สรุปจำนวนจุดผิดหลักต่อไฟล์</h3>
+          <div class="issue-table-scroll">
+            <table class="issue-table">
+              <thead>
+                <tr>
+                  <th>ไฟล์</th>
+                  <th>WHERE</th>
+                  <th>IF / Flow</th>
+                  <th>JOIN</th>
+                  <th>หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>NDBS_UpdateAllBudgetAmount.sql</td>
+                  <td>2</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>Project query ใช้ <code>BudgetYear = U_Project</code></td>
+                </tr>
+                <tr>
+                  <td>NDBS_UpdateBudgetAmount.sql</td>
+                  <td>2</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>ผิดแบบเดียวกับ full refresh helper</td>
+                </tr>
+                <tr>
+                  <td>NDBS_BUDGET_CONTROL.sql</td>
+                  <td>0</td>
+                  <td>6</td>
+                  <td>1</td>
+                  <td>มี dead gate, OR ผิด, <code>BCount &gt;= 0</code> และ wrong variable</td>
+                </tr>
+                <tr>
+                  <td>SBO_SP_TRANSACTIONNOTIFICATION.sql</td>
+                  <td>9</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>condition เช็ก budget/ปีงบไม่สม่ำเสมอ</td>
+                </tr>
+                <tr>
+                  <td>NDBS_BUDGETNOTIFICATION.sql</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>4</td>
+                  <td>account mapping ไม่สม่ำเสมอ และมี engine คำนวณงบซ้ำอีกชุด</td>
+                </tr>
+                <tr>
+                  <td>NDBS_BUDGET_BEGINING.sql</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>ยังไม่เจอ WHERE/IF/JOIN ผิดเด่น ๆ แต่ยิง helper ซ้ำ</td>
+                </tr>
+                <tr>
+                  <td>NDBS_BUDGET_PR.sql</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>ยังไม่เจอ WHERE/IF/JOIN ผิดเด่น ๆ แต่ยิง helper ซ้ำ</td>
+                </tr>
+                <tr>
+                  <td>NDBS_BUDGET_PO.sql</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td>ไม่เด่นเรื่อง WHERE/IF/JOIN แต่จบด้วย <code>call NDBS_UpdateAllBudgetAmount</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="severity-stack">
+          <section class="severity-group">
+            <div class="severity-head">
+              <span class="severity-label severity-low">ระดับต่ำ</span>
+              <h3>ยังไม่ใช่ defect หลัก แต่สร้างภาระและขยายผลของ helper เดิม</h3>
+            </div>
+            <div class="findings-grid">
+              <article class="finding-card panel">
+                <span class="finding-type">Recalc Churn</span>
+                <h3>NDBS_BUDGET_BEGINING.sql / NDBS_BUDGET_PR.sql</h3>
+                <pre><code><span class="code-bad-line">Call NDBS_UpdateBudgetAmount(...)</span></code></pre>
+                <p class="finding-impact">ทั้งสองไฟล์ยิง helper ทีละบรรทัดระหว่าง rebuild/posting จึงขยายผลของ helper ที่ผิด และเพิ่มภาระ recalc โดยไม่จำเป็น</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="severity-group">
+            <div class="severity-head">
+              <span class="severity-label severity-medium">ระดับกลาง</span>
+              <h3>เริ่มมี logic ที่ตีความข้อมูลผิดหรือเปิดช่องให้ drift ได้</h3>
+            </div>
+            <div class="findings-grid">
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Condition</span>
+                <h3>SBO_SP_TRANSACTIONNOTIFICATION.sql</h3>
+                <pre><code><span class="code-bad-line">and ifnull(B."U_BudgetAmt",0) =0</span>
+...
+<span class="code-bad-line">and LEFT(T1."U_NDBS_BudgetYear",3) <> '202'</span>
+<span class="code-bad-line">and LEFT(T1."U_NDBS_BudgetYear",4) < '2024'</span></code></pre>
+                <p class="finding-impact">เอา “ไม่พบ budget setup” กับ “budget amount = 0” มารวมกัน และเช็กปีงบด้วย string คนละแบบ จึงเสี่ยง block ผิดหรือ validate ไม่ตรงกันเอง</p>
+              </article>
+
+              <article class="finding-card panel">
+                <span class="finding-type">Duplicate Engine</span>
+                <h3>NDBS_BUDGETNOTIFICATION.sql</h3>
+                <pre><code>Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."AcctCode"
+...
+<span class="code-bad-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."FormatCode"</span>
+...
+<span class="code-bad-line">Update "@NDBS_BGC_BPJL" Set "U_BudgetBal" = ...</span></code></pre>
+                <p class="finding-impact">ไฟล์นี้มี engine คำนวณงบของตัวเอง แก้ยอดใน master ตรง ๆ และยังใช้ account mapping คนละแบบกับไฟล์อื่น จึงเสี่ยง drift จาก control/helper หลัก</p>
+              </article>
+
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Variable</span>
+                <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                <pre><code>OldDept = currloop."OldOcrCode";
+...
+<span class="code-bad-line">Call NDBS_UpdateBudgetAmount(:OldGroup,TO_NVARCHAR(:BYear),'D',:OldBDept);</span></code></pre>
+                <p class="finding-impact">assign ค่าไว้ใน <code>OldDept</code> แต่ตอน call กลับส่ง <code>OldBDept</code> จึงเสี่ยง recalculate ผิด department</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="severity-group">
+            <div class="severity-head">
+              <span class="severity-label severity-high">ระดับสูง</span>
+              <h3>มีเงื่อนไขและ join ที่ทำให้เข้า branch ผิดหรือ map budget group ผิดได้</h3>
+            </div>
+            <div class="findings-grid">
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Flow</span>
+                <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                <pre><code>IF ( :object_type in ('30','22','21','20','18','19')) then
+  ...
+<span class="code-bad-line">if ( :object_type = '1470000113') then</span>
+    Call NDBS_BUDGET_PR (...)</code></pre>
+                <p class="finding-impact">เช็ก PR branch ไว้ข้างใน แต่ gate ด้านนอกไม่เปิดให้ <code>1470000113</code> ผ่าน จึงเสี่ยงไม่เข้า logic ที่ตั้งใจไว้</p>
+              </article>
+
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Join</span>
+                <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
+<span class="code-bad-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span></code></pre>
+                <p class="finding-impact">join <code>U_FormatCode</code> เข้ากับ <code>AcctCode</code> โดยตรง ทั้งที่จุดอื่นใช้ <code>FormatCode</code> จึงเสี่ยง map budget group ผิด</p>
+              </article>
+
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Condition</span>
+                <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                <pre><code><span class="code-bad-line">IF (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then</span>
+...
+<span class="code-bad-line">IF BCount >= 0 then</span></code></pre>
+                <p class="finding-impact">ใช้ <code>OR</code> กับ project และใช้เงื่อนไขที่จริงเสมอ จึงเปิดให้ branch ทำงานผิดจังหวะและ recalc เกินจำเป็น</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="severity-group">
+            <div class="severity-head">
+              <span class="severity-label severity-critical">ระดับร้ายแรง</span>
+              <h3>เป็นจุดที่ทำให้ทั้งข้อมูลเพี้ยนและ flow หนักพร้อมกัน</h3>
+            </div>
+            <div class="findings-grid">
+              <article class="finding-card panel">
+                <span class="finding-type">Wrong Query</span>
+                <h3>NDBS_UpdateAllBudgetAmount.sql / NDBS_UpdateBudgetAmount.sql</h3>
+                <pre><code>WHERE "Project" = currloop."U_Project"
+AND "BudgetGroup" = currloop."U_GroupCode"
+<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
+                <p class="finding-impact">เอา project code ไปเทียบกับ <code>BudgetYear</code> โดยตรง ทำให้ยอด budget ฝั่ง project เสี่ยงผิดได้ทันที ทั้งใน full refresh และ targeted helper</p>
+              </article>
+
+              <article class="finding-card panel">
+                <span class="finding-type">Critical Flow</span>
+                <h3>NDBS_BUDGET_CONTROL.sql / NDBS_BUDGET_PO.sql</h3>
+                <pre><code>DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+<span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span></code></pre>
+                <p class="finding-impact">หลาย entry point ลงท้ายด้วย full refresh ตัวเดียวกัน ทำให้ทุก posting หรือ startup call เสี่ยงลากทั้งระบบไปคำนวณงบใหม่ทั้งก้อน</p>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <div class="panel verdict-panel">
+          <p>
+            ถ้ามองทั้ง codebase จุดร้ายแรงสุดอยู่ที่ <strong>query ฝั่ง project ใช้ key ผิด</strong> และ <strong>หลาย procedure ลงท้ายด้วย full refresh</strong>
+            ส่วนจุดระดับสูงและกลางกระจายอยู่ใน control/notification layers ที่ใช้ join, condition และ validation ไม่สม่ำเสมอ
           </p>
         </div>
 
         <div class="panel verdict-panel">
-          <h3>ทำไมพอทีม IT แก้ NDBS_UpdateAllBudgetAmount.sql แล้วอาการช้าจึงหายจริง</h3>
+          <h3>ทางทีม IT ได้แก้ไขประสิทธิภาพของ NDBS_UpdateAllBudgetAmount.sql เพื่อให้ใช้งานได้ตามปกติ</h3>
           <p>
             เพราะจุดที่ถูกแก้คือคอขวดหลักที่ถูกเรียกต่อจาก <code>NDBS_BUDGET_CONTROL</code> ตอน login โดยตรง
             เดิม procedure นี้ใช้วิธีวน <code>for loop</code> ผ่าน budget ทั้งชุด แล้วค่อย <code>SUM</code> และ <code>UPDATE</code> ทีละแถว
@@ -212,6 +393,66 @@ AND "BudgetGroup" = currloop."U_GroupCode"
               </p>
             </article>
           </div>
+
+          <details class="hero-code-detail panel">
+            <summary>ดูโค้ดเปรียบเทียบแบบเดิม / แบบใหม่</summary>
+            <div class="hero-code-body comparison-grid">
+              <article class="hero-code-panel">
+                <div class="hero-code-head">
+                  <span class="source-tag">แบบเดิม</span>
+                  <strong>cursor + for loop + SELECT SUM/UPDATE ทีละแถว</strong>
+                </div>
+                <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
+Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL";
+
+for currloop as loopbudgetdept do
+  Select SUM(IFNULL("Amount",0)) INTO NetReserve
+  From "NDBS_BGC_OBDE"
+  WHERE "Department" = currloop."U_Department"
+    AND "BudgetGroup" = currloop."U_GroupCode"
+    AND "BudgetYear" = currloop."Code";
+
+  Update "@NDBS_BGC_BDPL" Set ...
+end for;
+
+for currloop as loopbudgetproj do
+  Select SUM(IFNULL("Amount",0)) INTO NetReserve
+  From "NDBS_BGC_OBPE"
+  WHERE "Project" = currloop."U_Project"
+    AND "BudgetGroup" = currloop."U_GroupCode"
+    AND "BudgetYear" = currloop."U_Project";
+
+  Update "@NDBS_BGC_BPJL" Set ...
+end for;</code></pre>
+              </article>
+
+              <article class="hero-code-panel">
+                <div class="hero-code-head">
+                  <span class="source-tag">แบบใหม่</span>
+                  <strong>set-based bulk update เป็นชุดใหญ่แทนการวนทีละแถว</strong>
+                </div>
+                <pre><code>UPDATE SBO_JBF."@NDBS_BGC_BDPL" T SET
+  T."U_BudgetRes" = IFNULL((
+    SELECT SUM(CASE WHEN D."BudgetType" = 'R'
+                    AND D."BudgetStatus" <> 'C'
+                    THEN IFNULL(D."Amount", 0) ELSE 0 END)
+    FROM SBO_JBF."NDBS_BGC_OBDE" D
+    WHERE D."Department" = T."U_Department"
+      AND D."BudgetGroup" = T."U_GroupCode"
+      AND D."BudgetYear"  = T."Code"
+  ), 0),
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0);
+
+UPDATE SBO_JBF."@NDBS_BGC_BPJL" T SET
+  T."U_BudgetRes" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0);</code></pre>
+              </article>
+            </div>
+          </details>
 
           <p>
             ดังนั้นเมื่อแก้ <code>NDBS_UpdateAllBudgetAmount.sql</code> แล้วอาการช้าหายไป จึงชี้ได้ชัดว่าคอขวดหลักอยู่ที่ procedure นี้จริง
