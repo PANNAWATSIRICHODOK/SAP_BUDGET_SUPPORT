@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Interactive two-layer budget control presentation for SAP Business One"
+      content="Forensic report for SAP Business One budget add-on slowdown and NDBS budget data defects"
     />
-    <title>SAP Budget Control Presentation</title>
+    <title>NDBS Budget Forensic Report</title>
+    <script>
+      if (!localStorage.getItem("ndbs_default_view_seen")) {
+        localStorage.setItem("ndbs_default_view_seen", "1");
+        window.location.replace("./legacy.html");
+      }
+    </script>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -15,843 +21,214 @@
       <div class="ambient ambient-a"></div>
       <div class="ambient ambient-b"></div>
 
-      <header class="frame">
-        <div class="frame-brand">
-          <span class="frame-kicker">Budget Flow</span>
-          <strong>SAP Business One Presentation</strong>
+    <header class="frame">
+      <div class="frame-brand">
+        <span class="frame-kicker">SBO_JBF / NDBS</span>
+        <strong>Budget Add-on Forensic Report</strong>
+      </div>
+      <div class="frame-actions">
+        <div class="frame-switch" aria-label="Version switch">
+          <a href="./legacy.html" title="flow เบื้องหลังของ addons budget">flow เบื้องหลังของ addons budget</a>
+          <a class="is-active" href="./index.html" aria-current="page" title="รายงานปัญหา">รายงานปัญหา</a>
         </div>
-        <div class="frame-actions">
-          <nav class="frame-nav" aria-label="Section navigation">
-            <a href="#overview">Overview</a>
-            <a href="#workflow">Workflow</a>
-          </nav>
-          <div class="frame-switch" aria-label="Version switch">
-            <a class="is-active" href="./index.html" aria-current="page">Current</a>
-            <a href="./legacy.html" title="d4a6612 add NDBS_BUDGET_CONTROL">Legacy</a>
-          </div>
-        </div>
-      </header>
+      </div>
+    </header>
 
-      <main class="slides" id="slides">
-        <section class="slide" id="overview" data-label="Overview">
-          <div class="slide-content">
-            <p class="eyebrow">Overview</p>
-            <h1>ระบบ Budget นี้ทำงานเป็น 5 ส่วนที่ต่อกัน</h1>
-            <p class="lead">
-              ถ้ามองแบบง่ายที่สุด ระบบจะเริ่มจากการรับ event จาก SAP แล้วตรวจข้อมูลต้นทางก่อน
-              จากนั้นจึงส่งเข้าเครื่องยนต์คุมงบเพื่อจองงบ ใช้งบ คืนงบ และคำนวณยอดคงเหลือกลับเข้า SAP Business One
+    <main class="slides">
+      <section class="slide hero" id="summary">
+        <div class="hero-copy panel panel-hero">
+          <p class="eyebrow">Summary</p>
+          <h1 class="report-title">Login เข้าแล้ว Budget ทำงานทันที</h1>
+          <p class="lead">
+            เราใส่ <code>INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE"</code> ไว้ใน
+            <code>NDBS_BUDGET_CONTROL</code> และ <code>NDBS_UpdateAllBudgetAmount</code> เพื่อดูว่า add-on ถูกเรียกเมื่อใด
+            จากนั้นล้าง table แล้ว login เข้า SAP โดยยังไม่เปิดเอกสารหรือเริ่ม transaction ใด ๆ แต่ใน
+            <code>NDBS_LOGIN_TRACE</code> กลับมีข้อมูลถูก insert เข้ามาทันที จึงยืนยันได้ว่า Budget ถูกเรียกตั้งแต่ช่วง login จริง
+          </p>
+          <div class="trace-reading">
+            <h4>สิ่งที่พิสูจน์ได้จากการทดสอบนี้</h4>
+            <ul>
+              <li>แค่ login เข้า SAP ก็มีการเรียก <code>NDBS_BUDGET_CONTROL</code></li>
+              <li>เมื่อ <code>NDBS_BUDGET_CONTROL</code> ถูกเรียก จะมี <code>NDBS_UpdateAllBudgetAmount</code> ตามมาทันที</li>
+              <li>ทั้งหมดนี้เกิดขึ้นทั้งที่ผู้ใช้ยังไม่ได้เริ่มสร้างเอกสารหรือทำ transaction ใด ๆ</li>
+            </ul>
+          </div>
+          <details class="hero-code-detail panel">
+            <summary>เปิดดูโค้ดและ trace ที่ใช้ยืนยัน</summary>
+            <div class="hero-code-body">
+              <div class="hero-code-stack">
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">Trace in NDBS_BUDGET_CONTROL</span>
+                    <strong>เราใส่ insert เพื่อตรวจว่ามีการ call ตอน login หรือไม่</strong>
+                  </div>
+                  <pre><code>EXEC
+  'INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE" ' ||
+  '("TS","PROC_NAME","OBJECT_TYPE","TRANSACTION_TYPE","DATAKEY","NOTE") VALUES (' ||
+  'CURRENT_TIMESTAMP, ''NDBS_BUDGET_CONTROL'', ... , ''entry'')';</code></pre>
+                </article>
+
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">Runtime trace from login</span>
+                    <strong>ยังไม่เปิดเอกสาร แต่ Budget ถูกเรียกทันที</strong>
+                  </div>
+                  <pre><code>2026-03-31 08:22:30.953  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_main   entry
+2026-03-31 08:22:31.031  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] start
+2026-03-31 08:22:32.523  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] end
+2026-03-31 08:22:32.794  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_m_fms  entry
+2026-03-31 08:22:34.908  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_p_fpc  entry
+2026-03-31 08:22:37.286  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_s_fst  entry</code></pre>
+                </article>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="slide section" id="slowdown">
+        <div class="section-head">
+          <p class="eyebrow">Slow Flow</p>
+          <h2>Flow ที่ทำให้ SAP ช้า</h2>
+          <p>ประเด็นสำคัญมีแค่เส้นทางนี้: <code>Login -> NDBS_BUDGET_CONTROL -> NDBS_UpdateAllBudgetAmount -> for loop ทั้งชุด</code></p>
+        </div>
+
+        <div class="impact-grid">
+          <article class="impact-card panel">
+            <h3>1. NDBS_BUDGET_CONTROL ทำอะไร</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>if :error = 0 then
+  IF ( :object_type in ('30','22','21','20','18','19')) then
+    ...
+    INSERT INTO "NDBS_BGC_OBDE" ...
+    INSERT INTO "NDBS_BGC_OBPE" ...
+    Call NDBS_UpdateBudgetAmount(...)
+  end if;
+end if;</code></pre>
+            </details>
+            <p>
+              ตัวนี้เป็น budget control หลักของระบบ เมื่อถูกเรียกจะวิ่งแตก logic ตามประเภทเอกสาร แล้วเขียน movement
+              ลงตาราง budget เช่น <code>NDBS_BGC_OBDE</code> และ <code>NDBS_BGC_OBPE</code> พร้อมอัปเดตยอด budget บางส่วนระหว่างทาง
             </p>
+          </article>
+          <article class="impact-card panel">
+            <h3>2. เมื่อ NDBS_BUDGET_CONTROL ทำงานก็จะไปเรียกใช้ NDBS_UpdateAllBudgetAmount ต่อ</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+<span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span></code></pre>
+            </details>
+            <p>
+              แปลว่าเมื่อ budget control ทำงานเสร็จ ระบบจะไม่หยุดแค่นั้น แต่จะไปเรียก
+              <code>NDBS_UpdateAllBudgetAmount</code> ต่อทันที เพื่อคำนวณงบใหม่ทั้งก้อน จึงทำให้ช่วง login กลายเป็นงานหนักทันที
+            </p>
+          </article>
+          <article class="impact-card panel">
+            <h3>3. NDBS_UpdateAllBudgetAmount เป็นงานหนัก</h3>
+            <details class="flow-code-detail">
+              <summary>ดูโค้ด</summary>
+              <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
+Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL";
 
-            <article class="overview-tabs panel">
-              <div class="overview-tab-list" role="tablist" aria-label="Overview audience views">
-                <button
-                  class="overview-tab is-active"
-                  id="overview-tab-business"
-                  type="button"
-                  role="tab"
-                  aria-selected="true"
-                  aria-controls="overview-panel-business"
-                  data-panel="business"
-                >
-                  Business
-                </button>
-                <button
-                  class="overview-tab"
-                  id="overview-tab-developer"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                  aria-controls="overview-panel-developer"
-                  data-panel="developer"
-                >
-                  Developer
-                </button>
-              </div>
+for currloop as loopbudgetdept do
+...
+end for;
 
-              <section
-                class="overview-tab-panel is-active"
-                id="overview-panel-business"
-                role="tabpanel"
-                aria-labelledby="overview-tab-business"
-              >
-                <article class="summary-band overview-summary-band">
-                  <strong>แต่ละส่วนใช้ทำอะไร</strong>
-                  <div class="system-map-grid">
-                    <article class="system-map-card">
-                      <span class="system-file-kicker">ด่านรับงาน</span>
-                      <h2>SBO_SP_TransactionNotification</h2>
-                      <p>รับ event จาก SAP แล้วเช็กข้อมูลต้นทางว่าเอกสารพร้อมเข้าสู่การคุมงบหรือยัง</p>
-                    </article>
-                    <article class="system-map-card">
-                      <span class="system-file-kicker">เครื่องยนต์หลัก</span>
-                      <h2>NDBS_BUDGET_CONTROL</h2>
-                      <p>เลือกเส้นทางตามชนิดเอกสาร แล้วเริ่มจองงบ ใช้งบ คืนงบ หรือย้อนผลกระทบของงบ</p>
-                    </article>
-                    <article class="system-map-card">
-                      <span class="system-file-kicker">เส้นทาง PR</span>
-                      <h2>NDBS_BUDGET_PR</h2>
-                      <p>เป็นทางแยกเฉพาะของ PR ใช้จัดการรายการต้นทางของคำขอใช้งบ</p>
-                    </article>
-                    <article class="system-map-card">
-                      <span class="system-file-kicker">ตัวคำนวณยอด</span>
-                      <h2>NDBS_UpdateBudgetAmount</h2>
-                      <p>รวบรวมยอดที่กันไว้ ยอดที่ใช้จริง และอัปเดตยอดคงเหลือกลับเข้า master ของงบ</p>
-                    </article>
-                    <article class="system-map-card">
-                      <span class="system-file-kicker">เส้นสร้างย้อนหลัง</span>
-                      <h2>NDBS_BUDGET_BEGINING</h2>
-                      <p>ใช้สร้าง movement ย้อนหลังจากเอกสารเดิม เมื่อต้อง rebuild ระบบงบใหม่ทั้งชุด</p>
-                    </article>
-                  </div>
-                </article>
+for currloop as loopbudgetproj do
+...
+end for;</code></pre>
+            </details>
+            <p>
+              procedure นี้จะวนทีละแถวผ่าน budget department และ budget project ทั้งชุด จากนั้นไป
+              <code>SUM</code> ยอดจาก movement tables แล้ว <code>UPDATE</code> budget master ทีละแถว จึงช้ามากเมื่อข้อมูลเยอะ
+              และยิ่งหนักขึ้นอีกถ้ามีหลาย user login พร้อมกัน
+            </p>
+          </article>
+        </div>
 
-                <article class="summary-band overview-summary-band">
-                  <strong>ระบบนี้ทำงานอยู่ 2 แบบ</strong>
-                  <div class="card-grid">
-                    <article class="card">
-                      <h2>Runtime Flow</h2>
-                      <p>ใช้ตอนผู้ใช้เพิ่ม แก้ไข ยกเลิก หรือปิดเอกสารจริงใน SAP แล้วระบบคุมงบทันทีใน transaction นั้น</p>
-                    </article>
-                    <article class="card">
-                      <h2>Rebuild Flow</h2>
-                      <p>ใช้ตอนต้องสร้าง movement งบย้อนหลังจากเอกสารเดิม เพื่อให้ ledger กับยอดคงเหลือกลับมาตรงกันใหม่</p>
-                    </article>
-                    <article class="card">
-                      <h2>เอกสารที่อยู่ในวงจร</h2>
-                      <p>Draft, PR, PO, GRPO, A/P Invoice, A/P Credit Memo และ JE แต่ละตัวมีผลต่องบไม่เหมือนกัน</p>
-                    </article>
-                  </div>
-                </article>
+        <div class="panel verdict-panel">
+          <p>
+            สรุปคือ login ไม่ได้เป็นแค่ขั้นตอนเข้าใช้งานธรรมดา แต่ถูกพาไปทำ budget processing ทันที และตอนจบยังโดนสั่ง
+            <code>full refresh</code> ของงบทั้งระบบผ่าน <code>NDBS_UpdateAllBudgetAmount</code> ที่ใช้
+            <code>for loop</code> วนข้อมูลทั้งชุด จึงเป็นเหตุผลหลักที่ทำให้ SAP ช้า
+          </p>
+        </div>
+      </section>
 
-                <article class="summary-band overview-summary-band">
-                  <strong>สรุปการทำงานแบบสั้นที่สุด</strong>
-                  <div class="card-grid">
-                    <article class="card">
-                      <h2>1. ตรวจข้อมูลก่อน</h2>
-                      <p>ระบบเช็กฝ่าย ปีงบ และ budget setup ก่อน ถ้าไม่พร้อมจะ block ตั้งแต่ต้นทาง</p>
-                    </article>
-                    <article class="card">
-                      <h2>2. ขยับงบตามเอกสาร</h2>
-                      <p>เมื่อผ่านแล้ว engine จะเลือกว่าควรกันงบ ใช้งบ คืนงบ หรือย้อนรายการเดิมตามชนิดเอกสาร</p>
-                    </article>
-                    <article class="card">
-                      <h2>3. อัปเดตยอดคงเหลือ</h2>
-                      <p>ทุกครั้งที่ movement เปลี่ยน ระบบจะคำนวณยอดคงเหลือใหม่ก่อนปล่อยให้ transaction จบ</p>
-                    </article>
-                  </div>
-                </article>
+      <section class="slide section" id="wrong-sql">
+        <div class="section-head">
+          <p class="eyebrow">Wrong SQL</p>
+          <h2>SQL ที่ยังผิดและทำให้ข้อมูล budget เพี้ยนได้</h2>
+          <p>เหลือแค่จุดที่สำคัญจริงและกระทบข้อมูลโดยตรง</p>
+        </div>
 
-                <article class="summary-band overview-summary-band">
-                  <strong>เอกสารแต่ละตัวไปทำอะไรกับงบหลังบ้าน</strong>
-                  <p class="summary-note">
-                    ส่วนนี้เป็นเวอร์ชันผสมระหว่างคำอธิบายแบบสั้นที่เคยใช้ตอนเพิ่ม <code>NDBS_BUDGET_CONTROL</code> กับรายละเอียดจาก SQL ปัจจุบัน เพื่อให้ผู้ใช้งาน SAP B1 เข้าใจง่าย แต่ยังไม่เสียภาพจริงของระบบ
-                  </p>
+        <div class="findings-grid">
+          <article class="finding-card panel">
+            <span class="finding-type">Wrong Query</span>
+            <h3>NDBS_UpdateAllBudgetAmount.sql</h3>
+            <pre><code>WHERE "Project" = currloop."U_Project"
+AND "BudgetGroup" = currloop."U_GroupCode"
+<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
+            <p class="finding-impact">เอา project code ไปเทียบกับ <code>BudgetYear</code> โดยตรง ทำให้ยอด budget ฝั่ง project เสี่ยงผิดได้ทันที</p>
+          </article>
 
-                  <div class="backend-role-grid">
-                    <article class="backend-role-card">
-                      <h2>Draft</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เช็กความพร้อมก่อนออกเอกสารจริง</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่าบรรทัดที่เกี่ยวกับงบใส่ฝ่ายหรือยัง, ใส่ปีงบหรือยัง, และสำหรับ draft ของ PR หรือ PO จะเช็กต่อว่ามีงบรองรับทั้งกรณีตามฝ่ายและตามโครงการหรือไม่</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> อนุญาตให้ draft ถูกนำไปเปิดต่อเป็นเอกสารจริง เช่น PR, PO, A/P Invoice หรือ A/P Credit Memo ตาม flow งาน</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> Draft ยังไม่กระทบงบเลย ยังไม่จองงบ ยังไม่ใช้จริง และยังไม่คืนงบ เป็นเพียงด่านตรวจข้อมูลเท่านั้น</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ draft</p>
-                        <div class="code-dropdown-list" data-backend-code="draft"></div>
-                      </div>
-                    </article>
+          <article class="finding-card panel">
+            <span class="finding-type">Wrong Query</span>
+            <h3>NDBS_UpdateBudgetAmount.sql</h3>
+            <pre><code>WHERE "Project" = currloop."U_Project"
+AND "BudgetGroup" = currloop."U_GroupCode"
+<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
+            <p class="finding-impact">helper ที่ควร update เฉพาะจุดก็ยังใช้ key ผิดแบบเดียวกัน จึงเสี่ยงเพี้ยนซ้ำแม้ไม่วิ่ง full refresh</p>
+          </article>
+        </div>
 
-                    <article class="backend-role-card">
-                      <h2>PR</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เป็นคำขอใช้งบก่อนออก PO</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่าบรรทัด PR ใส่ฝ่ายหรือยัง, ใส่ปีงบหรือยัง, ถ้าไม่มีโครงการจะต้องมีงบของฝ่ายรองรับ และถ้ามีโครงการจะต้องมีงบของโครงการรองรับด้วย</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> ในมุมผู้ใช้งาน PR จะพร้อมเข้าสู่ approval และถูกใช้เป็นฐานของ PO ต่อไป</p>
-                      <p><strong>หมายเหตุสำคัญ:</strong> ใน SQL ปัจจุบันมี procedure แยกสำหรับให้ PR ไปลงผลกับงบต่อ แต่ route runtime ยังมีจุดที่ต้องแก้ ดังนั้นตอนนี้ควรมองว่า PR อยู่ฝั่งเช็กข้อมูลต้นทางเป็นหลัก</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> PR คือคำขอใช้เงินต้นทาง ยังไม่ใช่การใช้เงินจริงแบบ PO แต่เป็นจุดที่ระบบบังคับให้ข้อมูล budget ต้องครบก่อนเริ่มจัดซื้อจริง</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ PR</p>
-                        <div class="code-dropdown-list" data-backend-code="pr"></div>
-                      </div>
-                    </article>
+        <div class="panel verdict-panel">
+          <p>
+            ข้อสรุปสุดท้ายมีแค่ 2 เรื่อง: <strong>Login ทำให้ Budget ทำงานทันทีและลาก full refresh จน SAP ช้า</strong>
+            และ <strong>query ฝั่ง project ใช้ key ผิด จึงทำให้ข้อมูล budget เพี้ยนได้</strong>
+          </p>
+        </div>
 
-                    <article class="backend-role-card">
-                      <h2>PO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> จองวงเงินไว้ก่อนซื้อจริง</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่าบรรทัด PO ใส่ฝ่ายหรือยัง, ใส่ปีงบหรือยัง, มีงบรองรับหรือไม่ทั้งกรณีตามฝ่ายและตามโครงการ และยังเช็กรูปแบบของปีงบอีกชั้นหนึ่ง</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> ระบบจะจองวงเงินของฝ่ายหรือโครงการที่ระบุไว้ทันที เพื่อไม่ให้วงเงินก้อนเดียวกันถูกใช้ซ้ำโดยเอกสารอื่น</p>
-                      <p><strong>ถ้างบไม่พอหรือมีการเปลี่ยนแปลง:</strong> ถ้าเป็นรายการของโครงการและวงเงินไม่พอ เอกสารอาจไม่ผ่านในด่านคุมงบขั้นสุดท้าย และถ้าแก้ไข ยกเลิก หรือปิด PO ระบบจะย้อนรายการเดิมและคืนวงเงินส่วนที่ยังไม่ใช้กลับมาให้อัตโนมัติ</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> PO ยังไม่ใช่ค่าใช้จ่ายจริง แต่เป็นสถานะ “กันไว้รอซื้อ” เพื่อจองงบก่อนถึงขั้นรับของหรือบันทึกเจ้าหนี้</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ PO</p>
-                        <div class="code-dropdown-list" data-backend-code="po"></div>
-                      </div>
-                    </article>
+        <div class="panel verdict-panel">
+          <h3>ทำไมพอทีม IT แก้ NDBS_UpdateAllBudgetAmount.sql แล้วอาการช้าจึงหายจริง</h3>
+          <p>
+            เพราะจุดที่ถูกแก้คือคอขวดหลักที่ถูกเรียกต่อจาก <code>NDBS_BUDGET_CONTROL</code> ตอน login โดยตรง
+            เดิม procedure นี้ใช้วิธีวน <code>for loop</code> ผ่าน budget ทั้งชุด แล้วค่อย <code>SUM</code> และ <code>UPDATE</code> ทีละแถว
+            แต่ version ที่ทีม IT ปรับใหม่เปลี่ยนเป็นการ <code>UPDATE</code> แบบ set-based ครั้งใหญ่ไม่กี่ครั้งแทน
+          </p>
 
-                    <article class="backend-role-card">
-                      <h2>GRPO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เปลี่ยนจากจองงบเป็นเริ่มใช้จริง</p>
-                      <p><strong>ระบบใช้ข้อมูลอะไรเป็นฐาน:</strong> GRPO จะอิงข้อมูลจากเอกสารต้นทางเดิม โดยเฉพาะ PO ที่เคยจองงบไว้ แล้วอ่านข้อมูลฝ่ายหรือโครงการจากรายการที่รับของนั้น</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> เมื่อรับของจาก PO ระบบจะย้ายยอดจากส่วนที่จองไว้ ไปเป็นยอดที่ถือว่าเริ่มใช้จริงตามมูลค่าของที่รับเข้า</p>
-                      <p><strong>ถ้ามีการยกเลิก:</strong> ระบบจะย้อนผลของการรับของกลับ และคำนวณยอดคงเหลือใหม่ให้สอดคล้องกับสถานะล่าสุด</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> GRPO คือจุดที่งบขยับจาก “จองไว้” ไปเป็น “ใช้จริง” เพราะมีการรับของเข้ามาแล้ว</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ GRPO</p>
-                        <div class="code-dropdown-list" data-backend-code="grpo"></div>
-                      </div>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>A/P Invoice</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ยืนยันค่าใช้จ่ายจริงทางเจ้าหนี้</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่ามีปีงบหรือยัง และปีงบอยู่ในรูปแบบที่ระบบยอมรับหรือไม่ ก่อนจะให้เอกสารเข้าไปกระทบงบ</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> เมื่อบันทึก A/P Invoice ระบบจะถือว่ารายการนั้นเป็นค่าใช้จ่ายจริงแล้ว ไม่ว่าจะอ้างจาก PO, GRPO หรือบันทึกตรงตามเงื่อนไขที่โค้ดรองรับ</p>
-                      <p><strong>ถ้าอ้างอิงเอกสารเดิมหรือมีการยกเลิก:</strong> ถ้าอ้างจาก PO หรือ GRPO ระบบจะเปลี่ยนยอดที่จองไว้หรือยอดที่เริ่มใช้จริง ให้กลายเป็นค่าใช้จ่ายจริงตามยอดเจ้าหนี้ที่บันทึก และถ้ายกเลิกเอกสาร ระบบจะคืนผลกระทบของงบและคำนวณยอดใหม่ให้อัตโนมัติ</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> A/P Invoice คือจุดที่ค่าใช้จ่ายถูกยืนยันชัดเจนในงบและผูกกับภาระเจ้าหนี้จริง</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ A/P Invoice</p>
-                        <div class="code-dropdown-list" data-backend-code="apinvoice"></div>
-                      </div>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>Goods Return</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ลดการใช้จริงเมื่อมีการคืนของ</p>
-                      <p><strong>ระบบใช้ข้อมูลอะไรเป็นฐาน:</strong> Goods Return จะอิงรายการของที่เคยรับเข้าหรือเคยใช้งบไปแล้ว เพื่อรู้ว่าต้องลดผลกระทบของงบจากรายการใด</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> เมื่อมีการคืนของ ระบบจะปรับยอดใช้จริงให้ลดลงตามปริมาณและมูลค่าที่คืนกลับ เพื่อไม่ให้ใช้งบค้างเกินจากของที่ถือไว้จริง</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> Goods Return ช่วยดึงยอดใช้งบกลับลงบางส่วน ทำให้งบสะท้อนสถานะของการรับคืนสินค้าได้ถูกต้องขึ้น</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ Goods Return</p>
-                        <div class="code-dropdown-list" data-backend-code="goodsreturn"></div>
-                      </div>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>A/P Credit Memo</h2>
-                      <p><strong>หน้าที่หลัก:</strong> คืนค่าใช้จ่ายหรือคืนงบ</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่ามีปีงบหรือยัง ก่อนให้เอกสารเข้าไปคืนผลกระทบของงบ</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> เมื่อมี A/P Credit Memo ระบบจะมองว่าเราได้รับการลดหนี้หรือย้อนค่าใช้จ่ายบางส่วนกลับมา จึงต้องคืนผลกระทบของงบที่เคยรับรู้ไว้</p>
-                      <p><strong>ถ้ามีหรือไม่มีเอกสารอ้างอิง:</strong> ถ้ามีเอกสารอ้างอิง ระบบจะย้อนผลจากรายการเดิมก่อน แต่ถ้าไม่มี ระบบจะคืนผลกระทบของงบจากเอกสารนั้นโดยตรง โดยในฝั่งโครงการยังมีเงื่อนไขใน SQL ที่ควรแก้ให้ชัดเจนอีกจุดหนึ่ง</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> A/P Credit Memo คือเอกสารที่ดึงค่าใช้จ่ายกลับ และทำให้งบถูกคืนตามรายการที่เคยรับรู้ไปแล้ว</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ A/P Credit Memo</p>
-                        <div class="code-dropdown-list" data-backend-code="apcreditmemo"></div>
-                      </div>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>JE</h2>
-                      <p><strong>หน้าที่หลัก:</strong> กระทบงบตรงจากรายการบัญชี</p>
-                      <p><strong>ระบบเช็กก่อนผ่าน:</strong> ตรวจว่ามีปีงบหรือยัง และปีงบอยู่ในรูปแบบที่ระบบยอมรับหรือไม่ แม้จะไม่ได้เช็ก budget setup แบบ PR หรือ PO</p>
-                      <p><strong>ผ่านแล้วระบบทำอะไร:</strong> JE ไม่ผ่านขั้นจองวงเงินแบบ PO แต่ถ้าผ่านการตรวจข้อมูลแล้ว ระบบจะถือว่ารายการนั้นกระทบงบจริงทันที</p>
-                      <p><strong>ถ้ามีการแก้ไข:</strong> ระบบจะอัปเดตผลกระทบของงบตามข้อมูลล่าสุดของ JE เพื่อให้ยอดคงเหลือไม่ค้างตามรายการเดิม</p>
-                      <p><strong>ผู้ใช้ควรเข้าใจว่า:</strong> เหมาะกับรายการที่เข้าทางบัญชีโดยตรงและต้องสะท้อนผลในงบทันที โดยไม่ต้องรอผ่านเอกสารจัดซื้อก่อน</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ JE</p>
-                        <div class="code-dropdown-list" data-backend-code="je"></div>
-                      </div>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>Rebuild ย้อนหลัง</h2>
-                      <p><strong>หน้าที่หลัก:</strong> สร้างผลกระทบงบย้อนหลังจากเอกสารเดิม</p>
-                      <p><strong>ระบบใช้ข้อมูลอะไรเป็นฐาน:</strong> อ่านเอกสารเก่าที่มีอยู่ในระบบ เช่น PO, GRPO, A/P Invoice, Return, A/P Credit Memo และ JE เพื่อสร้างประวัติงบย้อนหลังขึ้นมาใหม่</p>
-                      <p><strong>เมื่อรันแล้วระบบทำอะไร:</strong> จะไล่เอกสารทีละประเภทแล้วสร้างผลกระทบงบย้อนหลัง พร้อมคำนวณยอดใหม่ทั้งชุดให้ข้อมูลปัจจุบันกลับมาตรงกับเอกสารที่เคยเกิดไปแล้ว</p>
-                      <p><strong>ข้อควรระวัง:</strong> เส้นนี้ไม่ใช่งานประจำวันที่ผู้ใช้ SAP B1 ทำทุกวัน แต่เป็นเครื่องมือซ่อมระบบงบ และตอนนี้ PR ในเส้นนี้ยังไม่ได้เปิดใช้งานจริง</p>
-                      <div class="backend-role-sql">
-                        <p><strong>SQL ที่เกี่ยวข้อง:</strong> กดดูโค้ดจริงของ rebuild</p>
-                        <div class="code-dropdown-list" data-backend-code="rebuild"></div>
-                      </div>
-                    </article>
-                  </div>
-                </article>
-              </section>
-
-              <section
-                class="overview-tab-panel"
-                id="overview-panel-developer"
-                role="tabpanel"
-                aria-labelledby="overview-tab-developer"
-                hidden
-              >
-                <article class="developer-banner">
-                  <span class="developer-badge">SQL Audit</span>
-                  <p>ตรวจจากไฟล์ SQL ปัจจุบันแล้ว พบจุดพังที่ควรรีบแก้ 8 จุด และจุดที่ต้องยืนยันกติกาอีก 2 จุด</p>
-                </article>
-
-                <div class="developer-group">
-                  <div class="developer-group-head">
-                    <h2>ต้องรีบแก้</h2>
-                    <p>เป็นจุดที่มีผลต่อการ block เอกสาร, การ route ผิดทาง, หรือทำให้ยอดงบคงเหลือเพี้ยนได้จริง</p>
-                  </div>
-
-                  <div class="developer-grid">
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">SBO_SP_TransactionNotification.sql:744-760</span>
-                      </div>
-                      <h2>Draft เช็กปีงบด้วยตัวแปรผิด</h2>
-                      <p><strong>ปัญหา:</strong> query นับผลลง <code>cnt1</code> แต่ตอนตัดสินใจกลับไปเช็ก <code>cnt</code></p>
-                      <p><strong>ผลกระทบ:</strong> draft อาจ block ผิด หรือหลุดการตรวจตามค่าที่ค้างจาก query ก่อนหน้า</p>
-                      <p><strong>ควรแก้:</strong> เปลี่ยนเงื่อนไขให้เช็ก <code>cnt1</code> ให้ตรงกับค่าที่นับจริง</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="draft_year_var"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">SBO_SP_TransactionNotification.sql:728-750</span>
-                      </div>
-                      <h2>Draft PR ใช้ Object Type ไม่ตรง</h2>
-                      <p><strong>ปัญหา:</strong> draft logic ยังอ้าง <code>1470000049</code> แทนที่จะเป็น <code>1470000113</code> สำหรับ PR</p>
-                      <p><strong>ผลกระทบ:</strong> draft ของ PR อาจไม่ถูกตรวจในกฎที่ควรโดน หรือไปตรวจเอกสารผิดประเภทแทน</p>
-                      <p><strong>ควรแก้:</strong> ยืนยัน object type ของ draft แต่ละเอกสาร แล้วแก้ list ให้ตรงกับ flow จริง</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="draft_pr_objtype"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:487-491</span>
-                      </div>
-                      <h2>PR route ไปด่านคุมงบขั้นสุดท้ายเข้าไม่ถึง</h2>
-                      <p><strong>ปัญหา:</strong> outer <code>IF</code> ไม่รวม PR แต่ด้านในยังมี <code>Call NDBS_BUDGET_PR</code></p>
-                      <p><strong>ผลกระทบ:</strong> PR อาจผ่านได้แค่ด่านต้นทาง แต่ไม่เข้าชั้น movement ตามที่ตั้งใจ</p>
-                      <p><strong>ควรแก้:</strong> ทำให้ PR อยู่ในเงื่อนไข outer หรือแยก call ของ PR ออกมาให้ reachable จริง</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="pr_route_unreachable"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_UpdateBudgetAmount.sql:82-92</span>
-                      </div>
-                      <h2>Recalculate ฝั่ง Project ใช้ปีงบผิดคอลัมน์</h2>
-                      <p><strong>ปัญหา:</strong> loop project เอา <code>U_Project</code> ไปเทียบกับ <code>BudgetYear</code></p>
-                      <p><strong>ผลกระทบ:</strong> reserve, actual และ remaining ของ project อาจถูกคำนวณผิดทั้งชุด</p>
-                      <p><strong>ควรแก้:</strong> เปลี่ยนเงื่อนไขให้ใช้ปีงบจริง แล้วทดสอบยอดคงเหลือของ project ใหม่ทั้งหมด</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="project_year_wrong"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:2014-2034</span>
-                      </div>
-                      <h2>AP Credit Memo ฝั่ง Project ใช้ OR ทำให้เข้าทางผิดได้</h2>
-                      <p><strong>ปัญหา:</strong> ใช้ <code>(Project IS NOT NULL) OR (Project != '')</code> แทนการเช็กว่า project ต้องมีค่าครบจริง</p>
-                      <p><strong>ผลกระทบ:</strong> บรรทัดที่ project ว่างแต่อยู่ในสภาพไม่เป็น null อาจหลุดเข้า path ของ project</p>
-                      <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>AND</code> และใช้ pattern เดียวกันทุกจุดที่ route ด้วย project</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="apcn_project_or"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:1122-1129, 2026-2033</span>
-                      </div>
-                      <h2>เงื่อนไข BCount มากกว่าหรือเท่ากับศูนย์จริงตลอด</h2>
-                      <p><strong>ปัญหา:</strong> ใช้ <code>BCount &gt;= 0</code> หลัง <code>COUNT(*)</code> ซึ่งผ่านเสมอแม้ไม่เจอ movement เดิม</p>
-                      <p><strong>ผลกระทบ:</strong> procedure จะพยายาม recalc ต่อแม้ไม่มีข้อมูลอ้างอิงจริง เสี่ยงใช้ค่า null หรือ context ผิด</p>
-                      <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>&gt; 0</code> และป้องกันกรณีไม่พบ movement ก่อน <code>SELECT TOP 1</code></p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="bcount_ge_zero"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_BUDGET_BEGINING.sql:1-831</span>
-                      </div>
-                      <h2>Rebuild ไม่มีขั้นล้าง movement เดิมก่อนสร้างใหม่</h2>
-                      <p><strong>ปัญหา:</strong> ไม่พบ <code>DELETE</code> หรือ <code>TRUNCATE</code> สำหรับ ledger ก่อน loop insert</p>
-                      <p><strong>ผลกระทบ:</strong> ถ้ารันซ้ำ movement อาจซ้ำทั้งระบบและทำให้งบคงเหลือผิดทันที</p>
-                      <p><strong>ควรแก้:</strong> กำหนดโหมด rebuild ให้ชัดว่าจะล้างก่อน หรือทำให้ script รันซ้ำแล้วไม่สร้างรายการซ้ำ</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="rebuild_no_cleanup"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-urgent">Urgent</span>
-                        <span class="developer-ref">NDBS_BUDGET_BEGINING.sql:282-309</span>
-                      </div>
-                      <h2>Rebuild ยังไม่สร้าง movement ของ PR</h2>
-                      <p><strong>ปัญหา:</strong> loop ของ PR ใน procedure rebuild ถูก comment ทิ้งทั้ง block</p>
-                      <p><strong>ผลกระทบ:</strong> ถ้าต้อง rebuild ledger ใหม่ ภาพย้อนหลังของ PR จะหายไปจากระบบ</p>
-                      <p><strong>ควรแก้:</strong> ตัดสินใจให้ชัดว่า PR ต้องอยู่ใน rebuild หรือไม่ แล้วเปิด block นี้ถ้าต้องใช้จริง</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่ผิด:</strong> กดดูโค้ดปัญหา</p>
-                        <div class="code-dropdown-list" data-developer-code="rebuild_pr_commented"></div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-
-                <div class="developer-group">
-                  <div class="developer-group-head">
-                    <h2>ต้องยืนยันกติกา</h2>
-                    <p>ไม่ใช่ syntax bug โดยตรง แต่ตอนนี้พฤติกรรมของระบบไม่สอดคล้องกันและควรให้ทีม business ยืนยันก่อนแก้</p>
-                  </div>
-
-                  <div class="developer-grid">
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-high">High</span>
-                        <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:604-614, 1379-1416</span>
-                      </div>
-                      <h2>Department กับ Project คุม over-budget ไม่เหมือนกัน</h2>
-                      <p><strong>ปัญหา:</strong> ฝั่ง department ถูก comment block ออก แต่ฝั่ง project ยัง block อยู่จริง</p>
-                      <p><strong>ผลกระทบ:</strong> เอกสารประเภทเดียวกันอาจผ่านใน department แต่ไม่ผ่านใน project</p>
-                      <p><strong>ควรยืนยัน:</strong> ระบบต้องการคุมให้เหมือนกันทั้งสองฝั่งหรือไม่</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่เกี่ยวข้อง:</strong> กดดูโค้ดเปรียบเทียบ</p>
-                        <div class="code-dropdown-list" data-developer-code="overbudget_mismatch"></div>
-                      </div>
-                    </article>
-
-                    <article class="developer-card">
-                      <div class="developer-card-head">
-                        <span class="developer-priority is-high">High</span>
-                        <span class="developer-ref">SBO_SP_TransactionNotification.sql:1050, 1071, 1092</span>
-                      </div>
-                      <h2>กฎ Budget Year ของ PO, AP และ JE ใช้คนละมาตรฐาน</h2>
-                      <p><strong>ปัญหา:</strong> PO เช็กแค่ขึ้นต้นด้วย <code>202</code> แต่ AP และ JE เช็กว่าไม่น้อยกว่า <code>2024</code></p>
-                      <p><strong>ผลกระทบ:</strong> ปีงบเดียวกันอาจผ่านบางเอกสารแต่ไม่ผ่านอีกเอกสารหนึ่ง</p>
-                      <p><strong>ควรยืนยัน:</strong> ต้องการใช้รูปแบบเดียวกันทุกเอกสารหรือแยกตามประเภทจริง</p>
-                      <div class="developer-card-sql">
-                        <p><strong>Query ที่เกี่ยวข้อง:</strong> กดดูโค้ดเปรียบเทียบ</p>
-                        <div class="code-dropdown-list" data-developer-code="budget_year_mismatch"></div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-              </section>
-            </article>
-
-            <p class="slide-hint">เลื่อนลงเพื่อดูว่าแต่ละเอกสารถูกคุมอย่างไรตั้งแต่ด่านต้นทางไปจนถึงด่านคุมงบขั้นสุดท้าย</p>
-          </div>
-        </section>
-
-        <section class="slide" id="workflow" data-label="Workflow">
-          <div class="slide-content">
-            <p class="eyebrow">Workflow</p>
-            <h1>เริ่มจากเอกสาร แล้วค่อยไล่ลึกลงไปถึงการคุมงบของระบบ</h1>
-
-            <article class="workflow-intro-panel panel">
+          <div class="comparison-grid">
+            <article class="comparison-card">
+              <span>แบบเดิม</span>
+              <strong>ช้าเพราะทำงานแบบทีละแถว</strong>
               <p>
-                ลำดับด้านล่างถูกจัดใหม่ให้ไล่อ่านง่ายขึ้น เริ่มจากสิ่งที่ผู้ใช้เห็นใน flow ของเอกสาร
-                ต่อด้วยสิ่งที่เกิดขึ้นภายในเครื่องยนต์งบ และปิดท้ายด้วยภาพรวมของระบบทั้งชุดจาก SAP จนถึง commit
+                ใช้ cursor สองชุดวิ่งผ่าน budget department และ budget project ทั้งหมด แล้วในแต่ละรอบยังไป
+                <code>SELECT SUM</code> และ <code>UPDATE</code> ซ้ำอีก ทำให้เกิดงานจำนวนมากแบบ row-by-row
               </p>
             </article>
 
-            <div class="workflow-subsection" id="document-workflow">
-              <div class="workflow-subsection-head">
-                <p class="eyebrow">Document Flow</p>
-                <h2>สิ่งที่ผู้ใช้งานเห็นตามลำดับเอกสาร</h2>
-                <p class="lead workflow-subsection-copy">
-                  คลิกทีละเอกสารเพื่อดูว่าเชื่อมจากไหน ไปต่อไหน ถูก block อย่างไร และเริ่มกระทบงบจริงเมื่อไร
-                </p>
-              </div>
-
-              <div class="flow-toolbar">
-                <div class="flow-stage-status">
-                  <span class="flow-stage-position" id="flow-stage-position">1 / 6</span>
-                  <strong id="flow-stage-caption">Draft Gate</strong>
-                </div>
-                <div class="flow-nav">
-                  <button class="flow-nav-button" id="flow-prev" type="button" aria-label="Previous stage">
-                    ก่อนหน้า
-                  </button>
-                  <button class="flow-nav-button" id="flow-next" type="button" aria-label="Next stage">
-                    ถัดไป
-                  </button>
-                </div>
-              </div>
-
-              <div class="flow-map" id="flow-map">
-                <button class="flow-chip is-active" type="button" data-stage="draft">
-                  <span class="flow-chip-index">1</span>
-                  <span class="flow-chip-label">Draft</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="pr">
-                  <span class="flow-chip-index">2</span>
-                  <span class="flow-chip-label">PR</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="po">
-                  <span class="flow-chip-index">3</span>
-                  <span class="flow-chip-label">PO</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="ap">
-                  <span class="flow-chip-index">4</span>
-                  <span class="flow-chip-label">AP / APCN</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="je">
-                  <span class="flow-chip-index">5</span>
-                  <span class="flow-chip-label">JE</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip flow-chip-final" type="button" data-stage="final">
-                  <span class="flow-chip-index">6</span>
-                  <span class="flow-chip-label">Final</span>
-                </button>
-              </div>
-
-              <article class="flow-detail panel" id="flow-detail">
-                <div class="flow-detail-head">
-                  <p class="eyebrow" id="flow-detail-kicker">Stage 1</p>
-                  <h2 id="flow-detail-title">Draft</h2>
-                  <p id="flow-detail-summary">
-                    เอกสารร่างถูกคุมก่อนเกิดเอกสารจริง เพื่อกันข้อมูล budget ที่ยังไม่พร้อม
-                  </p>
-                  <div class="flow-tag-row" id="flow-detail-tags"></div>
-                </div>
-
-                <div class="flow-meta-grid">
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">เชื่อมจาก</span>
-                    <strong id="flow-detail-from">เริ่มต้นของรายการ</strong>
-                  </article>
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">เชื่อมไป</span>
-                    <strong id="flow-detail-to">PR / PO / เอกสารจริง</strong>
-                  </article>
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">ถ้าโดน block</span>
-                    <strong id="flow-detail-impact">ยังไม่พร้อมไปขั้นถัดไป</strong>
-                  </article>
-                </div>
-
-                <div class="flow-detail-body">
-                  <div class="flow-blocks-panel">
-                    <div class="flow-rule-groups">
-                      <div class="flow-rule-group">
-                        <div class="flow-panel-head">
-                          <span class="flow-meta-label">Store Rules ที่ทำให้ Block</span>
-                          <p id="flow-block-rule-caption">4 จุดที่ store ใช้ block draft</p>
-                        </div>
-                        <div class="flow-rule-stack" id="flow-detail-block-rules"></div>
-                      </div>
-                      <div class="flow-rule-group">
-                        <div class="flow-panel-head">
-                          <span class="flow-meta-label">Store Rules ที่ทำงานต่อ</span>
-                          <p id="flow-continue-rule-caption">เมื่อผ่านแล้ว store จะพา flow ไปต่ออย่างไร</p>
-                        </div>
-                        <div class="flow-rule-stack" id="flow-detail-continue-rules"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="flow-side-stack">
-                    <article class="flow-side-card">
-                      <span class="flow-meta-label">ถ้าผ่าน</span>
-                      <p id="flow-detail-pass">
-                        ผ่านแล้ว draft พร้อมใช้เป็นฐานของเอกสารถัดไป แต่ระบบไม่ได้สร้างเอกสารถัดไปให้อัตโนมัติ
-                      </p>
-                    </article>
-                    <article class="flow-side-card">
-                      <span class="flow-meta-label">หมายเหตุ Flow</span>
-                      <p id="flow-detail-note">store นี้ทำหน้าที่อนุญาตหรือไม่อนุญาตให้บันทึกเอกสารในขั้นนั้น</p>
-                    </article>
-                    <div class="flow-code-panel">
-                      <div class="flow-code-groups">
-                        <div class="flow-code-group">
-                          <div class="flow-panel-head">
-                            <span class="flow-meta-label">Code refs / SQL ที่ทำให้ Block</span>
-                            <p id="flow-block-code-caption">กดดู query ที่ทำให้ flow หยุดในช่วงนี้</p>
-                          </div>
-                          <div class="code-dropdown-list" id="flow-detail-block-codes"></div>
-                        </div>
-                        <div class="flow-code-group">
-                          <div class="flow-panel-head">
-                            <span class="flow-meta-label">Code refs / SQL ที่ทำงานต่อ</span>
-                            <p id="flow-continue-code-caption">กดดู query ที่พา flow ไปต่อในช่วงนี้</p>
-                          </div>
-                          <div class="code-dropdown-list" id="flow-detail-continue-codes"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </article>
-
-              <p class="workflow-note">
-                มุมมองนี้ทำให้เห็นพร้อมกัน 4 อย่าง: เชื่อมจากไหน, ไปต่อไหน, ถูก block ตรงไหน, และงบถูกขยับเมื่อไร
+            <article class="comparison-card">
+              <span>แบบใหม่</span>
+              <strong>เร็วขึ้นเพราะรวมงานเป็น bulk update</strong>
+              <p>
+                rewrite ให้เหลือการ <code>UPDATE</code> แบบ set-based สองก้อนใหญ่แทนการวนทีละแถว
+                ทำให้ HANA ประมวลผลเป็นชุดเดียวและลด overhead จาก loop ซ้ำ ๆ ลงอย่างมาก
               </p>
-            </div>
-
-            <div class="workflow-subsection" id="ndbs-workflow">
-              <div class="workflow-subsection-head">
-                <p class="eyebrow">Budget Engine</p>
-                <h2>สิ่งที่เกิดขึ้นภายในด่านคุมงบขั้นสุดท้าย</h2>
-                <p class="lead workflow-subsection-copy">
-                  หลังเอกสารผ่านด่านต้นทางแล้ว ส่วนนี้จะพาไปดูว่า engine หลัก route รายการ จองงบ ใช้งบ คืนงบ และปิดงานอย่างไร
-                </p>
-              </div>
-
-              <article class="workflow-intro-panel panel">
-                <p>
-                  ส่วนนี้ซูมเข้าไปเฉพาะภายใน <code>NDBS_BUDGET_CONTROL</code> เพื่อดูสิ่งที่เกิดขึ้นหลังเอกสารผ่านด่านตรวจข้อมูลต้นทางแล้ว
-                </p>
-              </article>
-
-              <div class="flow-toolbar">
-                <div class="flow-stage-status">
-                  <span class="flow-stage-position" id="ndbs-flow-stage-position">1 / 6</span>
-                  <strong id="ndbs-flow-stage-caption">Entry Log</strong>
-                </div>
-                <div class="flow-nav">
-                  <button class="flow-nav-button" id="ndbs-flow-prev" type="button" aria-label="Previous NDBS stage">
-                    ก่อนหน้า
-                  </button>
-                  <button class="flow-nav-button" id="ndbs-flow-next" type="button" aria-label="Next NDBS stage">
-                    ถัดไป
-                  </button>
-                </div>
-              </div>
-
-              <div class="flow-map" id="ndbs-flow-map">
-                <button class="flow-chip is-active" type="button" data-stage="entry">
-                  <span class="flow-chip-index">1</span>
-                  <span class="flow-chip-label">Entry</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="route">
-                  <span class="flow-chip-index">2</span>
-                  <span class="flow-chip-label">Route</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="reserve">
-                  <span class="flow-chip-index">3</span>
-                  <span class="flow-chip-label">Reserve</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="actual">
-                  <span class="flow-chip-index">4</span>
-                  <span class="flow-chip-label">Actual</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip" type="button" data-stage="reverse">
-                  <span class="flow-chip-index">5</span>
-                  <span class="flow-chip-label">Reverse</span>
-                </button>
-                <span class="flow-connector" aria-hidden="true"></span>
-
-                <button class="flow-chip flow-chip-final" type="button" data-stage="finalize">
-                  <span class="flow-chip-index">6</span>
-                  <span class="flow-chip-label">Finalize</span>
-                </button>
-              </div>
-
-              <article class="flow-detail panel" id="ndbs-flow-detail">
-                <div class="flow-detail-head">
-                  <p class="eyebrow" id="ndbs-flow-detail-kicker">Stage 1</p>
-                  <h2 id="ndbs-flow-detail-title">Entry</h2>
-                  <p id="ndbs-flow-detail-summary">
-                    transaction ที่ผ่านด่านตรวจข้อมูลต้นทางแล้วจะถูกส่งเข้ามาในด่านคุมงบขั้นสุดท้าย และเริ่ม trace ก่อน route ต่อ
-                  </p>
-                  <div class="flow-tag-row" id="ndbs-flow-detail-tags"></div>
-                </div>
-
-                <div class="flow-meta-grid">
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">เชื่อมจาก</span>
-                    <strong id="ndbs-flow-detail-from">ด่านตรวจข้อมูลต้นทาง</strong>
-                  </article>
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">เชื่อมไป</span>
-                    <strong id="ndbs-flow-detail-to">route ตาม object type</strong>
-                  </article>
-                  <article class="flow-meta-card">
-                    <span class="flow-meta-label">ถ้าโดน block</span>
-                    <strong id="ndbs-flow-detail-impact">transaction ยังไม่ commit</strong>
-                  </article>
-                </div>
-
-                <div class="flow-detail-body">
-                  <div class="flow-blocks-panel">
-                    <div class="flow-panel-head">
-                      <span class="flow-meta-label">Procedure Rules</span>
-                      <p id="ndbs-flow-rule-caption">ขั้นแรกของด่านคุมงบขั้นสุดท้าย</p>
-                    </div>
-                    <div class="flow-rule-stack" id="ndbs-flow-detail-rules"></div>
-                  </div>
-                  <div class="flow-side-stack">
-                    <article class="flow-side-card">
-                      <span class="flow-meta-label">ถ้าผ่าน</span>
-                      <p id="ndbs-flow-detail-pass">
-                        procedure จะเข้าสู่ branch ของเอกสารนั้นและเริ่มเขียน movement งบตามสถานะจริง
-                      </p>
-                    </article>
-                    <article class="flow-side-card">
-                      <span class="flow-meta-label">หมายเหตุ Flow</span>
-                      <p id="ndbs-flow-detail-note">
-                        สไลด์นี้เป็น flow ภายใน procedure ไม่ใช่ flow เอกสารของผู้ใช้
-                      </p>
-                    </article>
-                    <div class="flow-code-panel">
-                      <span class="flow-meta-label">Code refs / SQL</span>
-                      <p class="flow-code-hint">กดเพื่อดูโค้ดของด่านคุมงบขั้นสุดท้ายในแต่ละช่วง</p>
-                      <div class="code-dropdown-list" id="ndbs-flow-detail-codes"></div>
-                    </div>
-                  </div>
-                </div>
-              </article>
-
-              <p class="workflow-note">
-                มุมมองนี้โฟกัสเฉพาะ procedure ชั้นสุดท้าย ว่า reserve, actual, reverse และ cleanup เกิดตรงไหนในโค้ด
-              </p>
-            </div>
-
-            <div class="workflow-subsection" id="system-workflow">
-              <div class="workflow-subsection-head">
-                <p class="eyebrow">System Workflow</p>
-                <h2>ต่อจาก Budget Engine จนจบการทำงานของระบบ</h2>
-                <p class="lead workflow-subsection-copy">
-                  ส่วนนี้เริ่มต่อจากช่วง Finalize ของ Budget Engine โดยตรง แล้วพาไปดูว่าระบบคำนวณยอดคงเหลือ เขียนกลับ budget master และส่งผลกลับไปให้ SAP บันทึกหรือ block เอกสารอย่างไร
-                </p>
-              </div>
-
-              <article class="summary-band workflow-system-band">
-                <div class="flow-toolbar">
-                  <div class="flow-stage-status">
-                    <span class="flow-stage-position" id="system-flow-stage-position">1 / 5</span>
-                    <strong id="system-flow-stage-caption">Finalize</strong>
-                  </div>
-                  <div class="flow-nav">
-                    <button class="flow-nav-button" id="system-flow-prev" type="button" aria-label="Previous system stage">
-                      ก่อนหน้า
-                    </button>
-                    <button class="flow-nav-button" id="system-flow-next" type="button" aria-label="Next system stage">
-                      ถัดไป
-                    </button>
-                  </div>
-                </div>
-
-                <div class="flow-map" id="system-flow-map">
-                  <button class="flow-chip is-active" type="button" data-stage="engine">
-                    <span class="flow-chip-index">1</span>
-                    <span class="flow-chip-label">Finalize</span>
-                  </button>
-                  <span class="flow-connector" aria-hidden="true"></span>
-
-                  <button class="flow-chip" type="button" data-stage="update">
-                    <span class="flow-chip-index">2</span>
-                    <span class="flow-chip-label">Update</span>
-                  </button>
-                  <span class="flow-connector" aria-hidden="true"></span>
-
-                  <button class="flow-chip" type="button" data-stage="recalc">
-                    <span class="flow-chip-index">3</span>
-                    <span class="flow-chip-label">Recalculate</span>
-                  </button>
-                  <span class="flow-connector" aria-hidden="true"></span>
-
-                  <button class="flow-chip" type="button" data-stage="writeback">
-                    <span class="flow-chip-index">4</span>
-                    <span class="flow-chip-label">Write Back</span>
-                  </button>
-                  <span class="flow-connector" aria-hidden="true"></span>
-
-                  <button class="flow-chip flow-chip-final" type="button" data-stage="commit">
-                    <span class="flow-chip-index">5</span>
-                    <span class="flow-chip-label">Commit / Block</span>
-                  </button>
-                </div>
-
-                <article class="flow-detail panel" id="system-flow-detail">
-                  <div class="flow-detail-head">
-                    <p class="eyebrow" id="system-flow-detail-kicker">Stage 1</p>
-                    <h2 id="system-flow-detail-title">Finalize จาก Budget Engine</h2>
-                    <p id="system-flow-detail-summary">
-                      หลัง Budget Engine route ของเอกสารจบแล้ว ระบบจะเริ่มช่วงปิดงานและส่งต่อไปยังตัวคำนวณยอดคงเหลือของงบทันที
-                    </p>
-                    <div class="flow-tag-row" id="system-flow-detail-tags"></div>
-                  </div>
-
-                  <div class="flow-meta-grid">
-                    <article class="flow-meta-card">
-                      <span class="flow-meta-label">เชื่อมจาก</span>
-                      <strong id="system-flow-detail-from">Budget Engine</strong>
-                    </article>
-                    <article class="flow-meta-card">
-                      <span class="flow-meta-label">เชื่อมไป</span>
-                      <strong id="system-flow-detail-to">NDBS_UpdateBudgetAmount</strong>
-                    </article>
-                    <article class="flow-meta-card">
-                      <span class="flow-meta-label">ถ้าโดน block</span>
-                      <strong id="system-flow-detail-impact">movement อาจถูกเขียนแล้ว แต่ยอดคงเหลือจะยังไม่ sync ต่อจนจบ</strong>
-                    </article>
-                  </div>
-
-                  <div class="flow-detail-body">
-                    <div class="flow-blocks-panel">
-                      <div class="flow-panel-head">
-                        <span class="flow-meta-label">System Rules</span>
-                        <p id="system-flow-rule-caption">สิ่งที่เกิดขึ้นทันทีหลัง Budget Engine จบ route ของเอกสาร</p>
-                      </div>
-                      <div class="flow-rule-stack" id="system-flow-detail-rules"></div>
-                    </div>
-                    <div class="flow-side-stack">
-                      <article class="flow-side-card">
-                        <span class="flow-meta-label">ถ้าผ่าน</span>
-                        <p id="system-flow-detail-pass">
-                          ระบบจะเข้าสู่การคำนวณยอดคงเหลือ แล้วค่อยส่งผลกลับไปให้ SAP ตัดสินใจบันทึกหรือ block
-                        </p>
-                      </article>
-                      <article class="flow-side-card">
-                        <span class="flow-meta-label">หมายเหตุ Flow</span>
-                        <p id="system-flow-detail-note">
-                          มุมมองนี้ต่อจาก Budget Engine โดยตรง จึงไม่ย้อนกลับไปเริ่มที่ SAP Event เหมือนเวอร์ชันก่อน
-                        </p>
-                      </article>
-                      <div class="flow-code-panel">
-                        <span class="flow-meta-label">Code refs / SQL</span>
-                        <p class="flow-code-hint">กดเพื่อดูโค้ดจริงตั้งแต่ปลาย Budget Engine ไปจนถึงจุดที่ SAP รับผลกลับ</p>
-                        <div class="code-dropdown-list" id="system-flow-detail-codes"></div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              </article>
-
-              <p class="workflow-note">
-                ส่วนนี้ต่อจาก Budget Engine โดยตรง ว่า movement ที่สร้างแล้วถูกคำนวณเป็นยอดคงเหลือ เขียนกลับ master และจบ transaction อย่างไร
-              </p>
-            </div>
+            </article>
           </div>
-        </section>
-      </main>
+
+          <p>
+            ดังนั้นเมื่อแก้ <code>NDBS_UpdateAllBudgetAmount.sql</code> แล้วอาการช้าหายไป จึงชี้ได้ชัดว่าคอขวดหลักอยู่ที่ procedure นี้จริง
+            ไม่ใช่แค่เพราะ Budget ถูกเรียกตอน login แต่เป็นเพราะสิ่งที่ procedure นี้ทำหลังถูกเรียกต่างหาก
+            อย่างไรก็ตาม ประเด็นความเร็วที่ดีขึ้นนี้เป็นคนละเรื่องกับประเด็นข้อมูล budget ฝั่ง project ที่ยังเสี่ยงเพี้ยนจาก query key ที่ผิด
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="report-footer" aria-hidden="true"></footer>
     </div>
 
     <script src="./app.js"></script>
