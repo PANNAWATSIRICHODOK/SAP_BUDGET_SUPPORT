@@ -1,4 +1,4 @@
-CREATE PROCEDURE NDBS_BUDGET_BEGINING
+CREATE PROCEDURE NDBS_BUDGET_BEGINING_BK11122025
 (
 	
 )
@@ -103,7 +103,7 @@ begin
 	
 	--PR>PO>AP		
 	Declare cursor loopinv1 for
-		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T3."OcrCode" "DocDept", T3."Project"
+		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T0."OcrCode" "DocDept", T0."Project"
 		, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
 		,T1."DocEntry",T0."LineNum",
 				T6."Code",T6."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
@@ -116,7 +116,7 @@ begin
 		FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		--Inner Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
 		INNER Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry" AND T3."LineNum" = T0."BaseLine" AND T0."BaseType" = '22'
-		INNER Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
+		INNER Join OACT T4 ON T0."AcctCode" = T4."AcctCode"
 		INNER Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."AcctCode"
 		INNER Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 		LEFT Join OPRC T7 ON T7."PrcCode" = T0."OcrCode"
@@ -149,12 +149,13 @@ begin
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 		LEFT join 
 		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+		
 		Where T0."LineTotal" <> 0 AND T0."U_NDBS_BudgetYear" IS NOT NULL AND T0."U_NDBS_BudgetYear" >= 2024 
 		AND T1."CANCELED" = 'N' AND IFNULL(I1."InvntItem",'N') <> 'Y';
 	
 	--PR>PO>GRP>AP		
 	Declare cursor loopinv3 for
-		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T2."OcrCode" "DocDept", T2."Project"
+		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T0."OcrCode" "DocDept", T0."Project"
 		, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
 		,T1."DocEntry",T0."LineNum",
 			T6."Code",T6."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
@@ -164,7 +165,7 @@ begin
 		FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		INNER Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine" AND T0."BaseType" = '20'
 		INNER Join POR1 T3 ON T3."DocEntry" = T2."BaseEntry" AND T3."LineNum" = T2."BaseLine" AND T2."BaseType" = '22'
-		INNER Join OACT T4 ON T0."AcctCode" = T4."AcctCode"
+		INNER Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
 		INNER Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."AcctCode"
 		INNER Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 		LEFT Join OPRC T7 ON T7."PrcCode" = T0."OcrCode"
@@ -253,31 +254,8 @@ begin
 		INNER Join "@NDBS_BGC_BGPL" T4 ON T4."U_AccountCode" = T3."AcctCode"
 		INNER Join "@NDBS_BGC_OBGP" T5 ON T4."Code" = T5."Code"
 		LEFT Join OPRC T6 ON T6."PrcCode" = T0."ProfitCode"
-		Where (T0."Debit"-T0."Credit") <> 0 AND T0."TransType" IN( '30') 
-		
-		AND IFNULL(T1."U_NDBS_UseBudget",'N') = 'Y' --#ตัดออกให้เอาเข้าหมด ไม่ใช้ UDF
-		 AND T0."U_NDBS_BudgetYear" IS NOT NULL AND T0."U_NDBS_BudgetYear" >= 2024
-		 
-		 UNION ALL
-		 
-		 SELECT T0."RefDate",CASE WHEN  T0."TransType" = 30 THEN T0."U_NDBS_BudgetYear" ELSE YEAR(T0."RefDate") END AS "U_NDBS_BudgetYear"
-		,T0."ProfitCode" "DocDept", T0."Project", (T0."Debit"-T0."Credit") "Amt",T0."TransId",T0."Line_ID",
-				T5."Code",T5."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."TransType" "BaseType",0 "BaseEntry",0 "BaseLine",
-				Case When T5."U_Center" = 'Y' THEN T5."U_Department" 
-				When T5."U_UseGroupCode" = 'N' THEN T6."PrcCode"
-				ELSE T6."U_NDBS_BudgetDept" END "ProfitCode"
-		FROM JDT1 T0 Inner Join OJDT T1 ON T0."TransId" = T1."TransId"
-		LEFT Join OACT T3 ON T0."Account" = T3."AcctCode"
-		INNER Join "@NDBS_BGC_BGPL" T4 ON T4."U_AccountCode" = T3."AcctCode"
-		INNER Join "@NDBS_BGC_OBGP" T5 ON T4."Code" = T5."Code"
-		LEFT Join OPRC T6 ON T6."PrcCode" = T0."ProfitCode"
-		Where (T0."Debit"-T0."Credit") <> 0 
-		AND T0."TransType" IN( '46','24','59','60') 
-		
-		--AND IFNULL(T0."U_NDBS_UseBudget",'N') = 'Y' #ตัดออกให้เอาเข้าหมด ไม่ใช้ UDF
-		 AND T0."U_NDBS_BudgetYear" IS NOT NULL AND T0."U_NDBS_BudgetYear" >= 2024
-		 
-		 ;		
+		Where (T0."Debit"-T0."Credit") <> 0 AND T0."TransType" IN( '30','46','24','59','60') AND IFNULL(T1."U_NDBS_UseBudget",'N') = 'Y'
+		 AND T0."U_NDBS_BudgetYear" IS NOT NULL AND T0."U_NDBS_BudgetYear" >= 2024;		
 		 
     /*
 	for currloop as looppr do
@@ -307,7 +285,6 @@ begin
 		end if;
 	end for;
 	*/
-	
 	
 	for currloop as looppo do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
@@ -424,7 +401,6 @@ begin
 			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
-	
 	for currloop as loopinv1 do
 		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
 			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
@@ -450,10 +426,9 @@ begin
 			"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
 					"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine","BF","TYPE")
 			VALUES
-				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,'18',:DocKey,:DocLine,
+				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv1');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:OldDept);
-			
+			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
 			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
@@ -470,6 +445,7 @@ begin
 			BaseType = currloop."BaseType";
 			BaseKey = currloop."BaseEntry";
 			BaseLine = currloop."BaseLine";
+			
 			AutoKey = :AutoKey+1;
 							
 			INSERT INTO "NDBS_BGC_OBPE"
@@ -483,7 +459,6 @@ begin
 			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
-	
 	for currloop as loopinv2 do
 		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
 			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
@@ -541,7 +516,6 @@ begin
 			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
-	
 	for currloop as loopinv3 do
 		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
 			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
@@ -599,7 +573,6 @@ begin
 			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
-	
 	for currloop as loopreturn do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
@@ -821,11 +794,9 @@ begin
 					"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine","BF","TYPE")
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'30',:DocKey,:DocLine,
-					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine,'Y','loopje');
+					:BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine,'Y','loopje');
 					
 			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);	
 		end if;	
-		
 	end for;
-	
 end;

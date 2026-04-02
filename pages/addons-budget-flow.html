@@ -218,67 +218,67 @@
                   <article class="developer-card">
                     <div class="developer-card-head">
                       <span class="developer-priority is-urgent">Urgent</span>
-                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:486-491</span>
+                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:23-26</span>
                     </div>
-                    <h2>PR branch ในด่านคุมงบขั้นสุดท้ายดูเหมือนเข้าไม่ถึง</h2>
-                    <p><strong>ปัญหา:</strong> outer <code>IF</code> ไม่รวม <code>1470000113</code> แต่ด้านในยังมี <code>Call NDBS_BUDGET_PR</code></p>
-                    <p><strong>ผลกระทบ:</strong> PR อาจผ่านแค่ด่านต้นทาง แต่ไม่เข้าด่านคุมงบขั้นสุดท้ายตามที่ตั้งใจ</p>
-                    <p><strong>ควรแก้:</strong> ปรับเงื่อนไข outer <code>IF</code> หรือย้าย call ของ PR ออกมาให้ reachable จริง</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-urgent">Urgent</span>
-                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:603-614</span>
-                    </div>
-                    <h2>Department over-budget block ถูก comment ไว้</h2>
-                    <p><strong>ปัญหา:</strong> ฝั่ง department มีบรรทัด <code>error = -32</code> และ <code>error_message</code> ที่ถูก comment ออก</p>
-                    <p><strong>ผลกระทบ:</strong> พฤติกรรมคุมงบอาจไม่เท่ากันระหว่าง department กับ project</p>
-                    <p><strong>ควรแก้:</strong> ยืนยัน business rule ว่าต้อง block หรือไม่ แล้วเปิดใช้ logic ให้สอดคล้องทั้งสองฝั่ง</p>
+                    <h2>JE route ใน wrapper เข้าไม่ถึงตามลำดับเงื่อนไขปัจจุบัน</h2>
+                    <p><strong>ปัญหา:</strong> มี <code>elseif ( :object_type = '19')</code> ซ้ำสองครั้งทั้ง APCN และ JE</p>
+                    <p><strong>ผลกระทบ:</strong> JE branch มีโอกาสไม่ถูก route เข้า <code>NDBS_BUDGET_JE</code> ตามที่ตั้งใจ</p>
+                    <p><strong>ควรแก้:</strong> ยืนยัน object type ของ JE แล้วแก้ branch หลังให้เป็นค่าที่ถูกต้อง โดยคาดว่าควรเป็น <code>'30'</code></p>
                   </article>
 
                   <article class="developer-card">
                     <div class="developer-card-head">
                       <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:2014-2050</span>
+                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:31-33</span>
                     </div>
-                    <h2>Project condition ใช้ OR เสี่ยงเข้าทางผิด</h2>
-                    <p><strong>ปัญหา:</strong> ใช้ <code>IF (Project IS NOT NULL) OR (Project != '')</code> ใน APCN project path</p>
-                    <p><strong>ผลกระทบ:</strong> เอกสารอาจถูกมองว่าเป็น project line ทั้งที่ค่า project ไม่สมบูรณ์</p>
-                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>AND</code> หรือ normalize ค่าก่อนเช็กทุก branch ที่เกี่ยวข้อง</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-urgent">Urgent</span>
-                      <span class="developer-ref">Budget.sql:180-195</span>
-                    </div>
-                    <h2>Draft เช็กตัวแปรผิด</h2>
-                    <p><strong>ปัญหา:</strong> query เก็บผลลง <code>cnt1</code> แต่เงื่อนไขกลับเช็ก <code>cnt</code></p>
-                    <p><strong>ผลกระทบ:</strong> draft อาจถูก block ผิด หรือหลุดการตรวจปีงบได้</p>
-                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>If :cnt1 &gt; 0 Then</code> และ retest draft ทุกประเภท</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-urgent">Urgent</span>
-                      <span class="developer-ref">Budget.sql:168-189</span>
-                    </div>
-                    <h2>Draft อ้างอิง ObjType น่าจะผิด</h2>
-                    <p><strong>ปัญหา:</strong> ใช้ <code>1470000049</code> ในจุดที่น่าจะตั้งใจคุม PR draft</p>
-                    <p><strong>ผลกระทบ:</strong> draft บางประเภทอาจไม่โดนตรวจ หรือไปตรวจเอกสารผิดประเภท</p>
-                    <p><strong>ควรแก้:</strong> ยืนยัน object type ที่ถูกต้อง ถ้าตั้งใจคุม PR ให้ตรวจเทียบกับ <code>1470000113</code></p>
+                    <h2>Wrapper ยังเรียก full refresh ทุกครั้งที่ route สำเร็จ</h2>
+                    <p><strong>ปัญหา:</strong> ตอนจบยังมี <code>call NDBS_UpdateAllBudgetAmount</code> ทุกครั้งที่ <code>error = 0</code></p>
+                    <p><strong>ผลกระทบ:</strong> แม้ helper ใหม่จะเร็วขึ้น แต่ flow ยังผูกอยู่กับ global refresh แทน targeted refresh</p>
+                    <p><strong>ควรแก้:</strong> ลด scope ของ recalc หรือเปลี่ยนให้เรียกเฉพาะกรณีที่จำเป็นจริง</p>
                   </article>
 
                   <article class="developer-card">
                     <div class="developer-card-head">
                       <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">Budget.sql:464-541</span>
+                      <span class="developer-ref">NDBS_BUDGET_AP.sql:604</span>
                     </div>
-                    <h2>กติกา Budget Year ไม่สอดคล้องกัน</h2>
-                    <p><strong>ปัญหา:</strong> PO ใช้ <code>LEFT(...,3) &lt;&gt; '202'</code> แต่ AP และ JE ใช้ <code>&lt; '2024'</code></p>
-                    <p><strong>ผลกระทบ:</strong> เอกสารแต่ละประเภทอาจผ่านหรือไม่ผ่านต่างกันทั้งที่ใช้ปีงบเดียวกัน</p>
-                    <p><strong>ควรแก้:</strong> กำหนด rule ปีงบกลางแบบเดียว แล้วใช้ซ้ำทุกเอกสาร</p>
+                    <h2>AP บาง path join budget mapping ผิด key</h2>
+                    <p><strong>ปัญหา:</strong> ใช้ <code>T5."U_FormatCode" = T4."AcctCode"</code> ทั้งที่จุดใกล้เคียงใช้ <code>FormatCode</code></p>
+                    <p><strong>ผลกระทบ:</strong> budget group อาจถูก map ผิดใน path ที่อ้าง PO เดิม</p>
+                    <p><strong>ควรแก้:</strong> ยืนยัน key กลางของ mapping table แล้วใช้ pattern เดียวกันทุก branch</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">NDBS_BUDGET_APCN.sql:126-146</span>
+                    </div>
+                    <h2>APCN cancel path ใช้เงื่อนไขที่จริงเสมอ</h2>
+                    <p><strong>ปัญหา:</strong> มี <code>IF BCount &gt;= 0</code> อยู่ 2 จุด</p>
+                    <p><strong>ผลกระทบ:</strong> block หลังยกเลิกเอกสารทำงานต่อแม้ไม่มี row ให้ใช้อ้างอิงจริง</p>
+                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>&gt; 0</code> และ retest cancel ทั้งฝั่ง department และ project</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-high">High</span>
+                      <span class="developer-ref">NDBS_BUDGETNOTIFICATION.sql:385, 505, 821, 941</span>
+                    </div>
+                    <h2>Notification layer ใช้ account mapping ไม่สม่ำเสมอ</h2>
+                    <p><strong>ปัญหา:</strong> บาง branch join ด้วย <code>AcctCode</code> แต่บาง branch เปลี่ยนไปใช้ <code>FormatCode</code></p>
+                    <p><strong>ผลกระทบ:</strong> document คนละ path อาจไปเจอ budget group คนละตัว ทั้งที่ business intent เดียวกัน</p>
+                    <p><strong>ควรแก้:</strong> เลือก mapping rule กลางเพียงแบบเดียว แล้วใช้ซ้ำทั้งไฟล์</p>
+                  </article>
+
+                  <article class="developer-card">
+                    <div class="developer-card-head">
+                      <span class="developer-priority is-medium">Medium</span>
+                      <span class="developer-ref">NDBS_BUDGETNOTIFICATION.sql:222, 244, 652, 674</span>
+                    </div>
+                    <h2>Notification layer ยังมี budget engine ของตัวเอง</h2>
+                    <p><strong>ปัญหา:</strong> ไฟล์นี้ยัง update <code>@NDBS_BGC_BDPL</code> และ <code>@NDBS_BGC_BPJL</code> โดยตรงหลายจุด</p>
+                    <p><strong>ผลกระทบ:</strong> เสี่ยง drift จาก procedure หลัก เพราะมีสองแหล่งคำนวณยอดงบพร้อมกัน</p>
+                    <p><strong>ควรแก้:</strong> รวม logic ไว้ที่ helper กลาง หรือเลิกใช้ notification engine ที่ซ้ำซ้อน</p>
                   </article>
                 </div>
               </section>

@@ -1104,7 +1104,9 @@ End If;
 
 
 if :error = 0 then
-	call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);
+	IF :object_type In ('1470000113','22','20','18','21','19','30') then
+		call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);
+	end if;
 end if;
 
 ---BUDGET---

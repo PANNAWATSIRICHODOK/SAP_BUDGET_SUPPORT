@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Forensic report for SAP Business One budget add-on slowdown and NDBS budget data defects"
+      content="Forensic report for SAP Business One budget add-on flow, current SQL defects, and latest performance fix status"
     />
     <title>รายงานปัญหา</title>
     <link rel="stylesheet" href="../assets/css/problem-report.css" />
@@ -15,394 +15,425 @@
       <div class="ambient ambient-a"></div>
       <div class="ambient ambient-b"></div>
 
-    <header class="frame">
-      <div class="frame-brand">
-        <span class="frame-kicker">SBO_JBF / NDBS</span>
-        <strong>Budget Add-on Forensic Report</strong>
-      </div>
-      <div class="frame-actions">
-        <div class="frame-switch" aria-label="Version switch">
-          <a href="./addons-budget-flow.html" title="flow ของ addons budget">flow ของ addons budget</a>
-          <a class="is-active" href="./problem-report.html" aria-current="page" title="รายงานปัญหา">รายงานปัญหา</a>
+      <header class="frame">
+        <div class="frame-brand">
+          <span class="frame-kicker">SBO_JBF / NDBS</span>
+          <strong>Budget Add-on Forensic Report</strong>
         </div>
-      </div>
-    </header>
-
-    <main class="slides">
-      <section class="slide hero" id="summary">
-        <div class="hero-copy panel panel-hero">
-          <p class="eyebrow">Summary</p>
-          <h1 class="report-title">Login เข้าแล้ว Budget ทำงานทันที</h1>
-          <p class="lead">
-            เราใส่ <code>INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE"</code> ไว้ใน
-            <code>NDBS_BUDGET_CONTROL</code> และ <code>NDBS_UpdateAllBudgetAmount</code> เพื่อดูว่า add-on ถูกเรียกเมื่อใด
-            จากนั้นล้าง table แล้ว login เข้า SAP โดยยังไม่เปิดเอกสารหรือเริ่ม transaction ใด ๆ แต่ใน
-            <code>NDBS_LOGIN_TRACE</code> กลับมีข้อมูลถูก insert เข้ามาทันที จึงยืนยันได้ว่า Budget ถูกเรียกตั้งแต่ช่วง login จริง
-          </p>
-          <div class="trace-reading">
-            <h4>สิ่งที่พิสูจน์ได้จากการทดสอบนี้</h4>
-            <ul>
-              <li>แค่ login เข้า SAP ก็มีการเรียก <code>NDBS_BUDGET_CONTROL</code></li>
-              <li>เมื่อ <code>NDBS_BUDGET_CONTROL</code> ถูกเรียก จะมี <code>NDBS_UpdateAllBudgetAmount</code> ตามมาทันที</li>
-              <li>ทั้งหมดนี้เกิดขึ้นทั้งที่ผู้ใช้ยังไม่ได้เริ่มสร้างเอกสารหรือทำ transaction ใด ๆ</li>
-            </ul>
+        <div class="frame-actions">
+          <div class="frame-switch" aria-label="Version switch">
+            <a href="./addons-budget-flow.html" title="flow ของ addons budget">flow ของ addons budget</a>
+            <a class="is-active" href="./problem-report.html" aria-current="page" title="รายงานปัญหา">รายงานปัญหา</a>
           </div>
-          <details class="hero-code-detail panel">
-            <summary>เปิดดูโค้ดและ trace ที่ใช้ยืนยัน</summary>
-            <div class="hero-code-body">
-              <div class="hero-code-stack">
-                <article class="hero-code-panel">
-                  <div class="hero-code-head">
-                    <span class="source-tag">Trace in NDBS_BUDGET_CONTROL</span>
-                    <strong>เราใส่ insert เพื่อตรวจว่ามีการ call ตอน login หรือไม่</strong>
-                  </div>
-                  <pre><code>EXEC
+        </div>
+      </header>
+
+      <main class="slides">
+        <section class="slide hero" id="summary">
+          <div class="hero-copy panel panel-hero">
+            <p class="eyebrow">Summary</p>
+            <h1 class="report-title">Login เข้าแล้ว Budget ทำงานทันที</h1>
+            <p class="lead">
+              เราใส่ <code>INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE"</code> ไว้ใน
+              <code>NDBS_BUDGET_CONTROL</code> และ <code>NDBS_UpdateAllBudgetAmount</code> เพื่อดูว่า add-on ถูกเรียกเมื่อใด
+              จากนั้นล้าง table แล้ว login เข้า SAP โดยยังไม่เปิดเอกสารหรือเริ่ม transaction ใด ๆ แต่ใน
+              <code>NDBS_LOGIN_TRACE</code> กลับมีข้อมูลถูก insert เข้ามาทันที จึงยืนยันได้ว่า Budget ถูกเรียกตั้งแต่ช่วง login จริง
+              และใน export ล่าสุด helper ปลายทางถูก rewrite เป็น set-based แล้ว ดังนั้นต้องแยกให้ออกว่า
+              <strong>flow ยังถูกเรียกเหมือนเดิม</strong> แต่ <strong>คอขวดเดิมถูกแก้ไปแล้ว</strong>
+            </p>
+            <div class="trace-reading">
+              <h4>สิ่งที่พิสูจน์ได้จากการทดสอบนี้</h4>
+              <ul>
+                <li>แค่ login เข้า SAP ก็มีการเรียก <code>NDBS_BUDGET_CONTROL</code></li>
+                <li>เมื่อ <code>NDBS_BUDGET_CONTROL</code> ถูกเรียก จะมี <code>NDBS_UpdateAllBudgetAmount</code> ตามมาทันที</li>
+                <li>ทั้งหมดนี้เกิดขึ้นทั้งที่ผู้ใช้ยังไม่ได้เริ่มสร้างเอกสารหรือทำ transaction ใด ๆ</li>
+                <li>แต่ export ล่าสุดแสดงชัดแล้วว่า helper ปลายทางไม่ใช่เวอร์ชัน cursor / for loop เดิมอีกต่อไป</li>
+              </ul>
+            </div>
+            <details class="hero-code-detail panel">
+              <summary>เปิดดูโค้ดและ trace ที่ใช้ยืนยัน</summary>
+              <div class="hero-code-body">
+                <div class="hero-code-stack">
+                  <article class="hero-code-panel">
+                    <div class="hero-code-head">
+                      <span class="source-tag">Trace in NDBS_BUDGET_CONTROL</span>
+                      <strong>เราใส่ insert เพื่อตรวจว่ามีการ call ตอน login หรือไม่</strong>
+                    </div>
+                    <pre><code>EXEC
   'INSERT INTO "UAT_JBF"."NDBS_LOGIN_TRACE" ' ||
   '("TS","PROC_NAME","OBJECT_TYPE","TRANSACTION_TYPE","DATAKEY","NOTE") VALUES (' ||
   'CURRENT_TIMESTAMP, ''NDBS_BUDGET_CONTROL'', ... , ''entry'')';</code></pre>
-                </article>
+                  </article>
 
-                <article class="hero-code-panel">
-                  <div class="hero-code-head">
-                    <span class="source-tag">Runtime trace from login</span>
-                    <strong>ยังไม่เปิดเอกสาร แต่ Budget ถูกเรียกทันที</strong>
-                  </div>
-                  <pre><code>2026-03-31 08:22:30.953  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_main   entry
+                  <article class="hero-code-panel">
+                    <div class="hero-code-head">
+                      <span class="source-tag">Runtime trace from login</span>
+                      <strong>ยังไม่เปิดเอกสาร แต่ Budget ถูกเรียกทันที</strong>
+                    </div>
+                    <pre><code>2026-03-31 08:22:30.953  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_main   entry
 2026-03-31 08:22:31.031  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] start
 2026-03-31 08:22:32.523  NDBS_UpdateAllBudgetAmount  [NULL]     [NULL] [NULL] end
 2026-03-31 08:22:32.794  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_m_fms  entry
 2026-03-31 08:22:34.908  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_p_fpc  entry
 2026-03-31 08:22:37.286  NDBS_BUDGET_CONTROL        410000000  U  m_bgc_s_fst  entry</code></pre>
+                  </article>
+                </div>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="slide section" id="slowdown">
+          <div class="section-head">
+            <p class="eyebrow">Latest Flow</p>
+            <h2>Flow ล่าสุดที่ยังถูกเรียกตอน Login</h2>
+            <p>ใน export ล่าสุด เส้นทางหลักยังเป็น <code>Login -> NDBS_BUDGET_CONTROL -> NDBS_UpdateAllBudgetAmount</code> แต่ปลายทางไม่ใช่เวอร์ชัน cursor / for loop เดิมแล้ว</p>
+          </div>
+
+          <div class="impact-grid">
+            <article class="impact-card panel">
+              <h3>1. NDBS_BUDGET_CONTROL ตอนนี้เป็น wrapper route</h3>
+              <details class="flow-code-detail">
+                <summary>ดูโค้ด</summary>
+                <pre><code>if ( :object_type = '1470000113') then
+  Call NDBS_BUDGET_PR (...);
+elseif ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (...);
+elseif ( :object_type = '20') then
+  Call NDBS_BUDGET_GRPO (...);
+elseif ( :object_type = '18') then
+  Call NDBS_BUDGET_AP (...);
+elseif ( :object_type = '21') then
+  Call NDBS_BUDGET_RETURN (...);
+elseif ( :object_type = '19') then
+  Call NDBS_BUDGET_APCN (...);
+elseif ( :object_type = '19') then
+  <span class="code-bad-line">Call NDBS_BUDGET_JE (...);</span>
+end if;</code></pre>
+              </details>
+              <p>
+                ตัวนี้ไม่ได้เป็น monolith แบบเดิมแล้ว แต่ทำหน้าที่ route ไป procedure ย่อยตาม document type แทน
+                อย่างไรก็ตามใน code ล่าสุดมี <code>elseif ( :object_type = '19')</code> ซ้ำสองครั้ง ทำให้ route ของ
+                <code>JE</code> น่าสงสัยและควรถูกแก้ก่อน
+              </p>
+            </article>
+            <article class="impact-card panel">
+              <h3>2. เมื่อ route สำเร็จ ก็ยังเรียก NDBS_UpdateAllBudgetAmount ต่อ</h3>
+              <details class="flow-code-detail">
+                <summary>ดูโค้ด</summary>
+                <pre><code>if (error = 0) then
+  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+  <span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span>
+end if;</code></pre>
+              </details>
+              <p>
+                จุดนี้ยังอยู่เหมือนเดิมใน export ล่าสุด ดังนั้น trace จาก login ยังอธิบายได้ว่า
+                <code>NDBS_BUDGET_CONTROL</code> ทำงานแล้วตามด้วย <code>NDBS_UpdateAllBudgetAmount</code>
+                แต่ความต่างสำคัญคือ helper ปลายทางถูกแก้ใหม่แล้ว
+              </p>
+            </article>
+            <article class="impact-card panel">
+              <h3>3. NDBS_UpdateAllBudgetAmount ล่าสุดถูกแก้เป็น set-based แล้ว</h3>
+              <details class="flow-code-detail">
+                <summary>ดูโค้ด</summary>
+                <pre><code>UPDATE "@NDBS_BGC_BDPL" T SET
+  T."U_BudgetRes" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0);
+
+UPDATE "@NDBS_BGC_BPJL" T SET
+  T."U_BudgetRes" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0);</code></pre>
+              </details>
+              <p>
+                helper ตัวนี้ใน export ล่าสุดไม่ใช้ cursor / for loop แบบเดิมแล้ว แต่เปลี่ยนเป็น bulk
+                <code>UPDATE</code> สองก้อนใหญ่แทน จึงอธิบายได้ว่าทำไมอาการช้ารอบเดิมหายไปหลังทีม IT แก้ไฟล์นี้
+              </p>
+            </article>
+          </div>
+
+          <div class="panel verdict-panel">
+            <p>
+              สรุปของ export ล่าสุดคือ login ยัง trigger budget flow เหมือนเดิม แต่คอขวดเดิมที่อยู่ใน
+              <code>NDBS_UpdateAllBudgetAmount</code> ถูกแก้แล้ว ดังนั้นประเด็นที่ยังเหลืออยู่ตอนนี้คือ
+              <strong>routing และ logic defect ใน procedure ย่อย</strong> มากกว่าจะเป็น
+              <strong>row-by-row recalculation</strong> แบบเดิม
+            </p>
+          </div>
+        </section>
+
+        <section class="slide section" id="wrong-sql">
+          <div class="section-head">
+            <p class="eyebrow">Wrong SQL</p>
+            <h2>SQL ที่พบปัญหา</h2>
+            <p>สรุปจากไฟล์ active รอบล่าสุดใน <code>references/NDBS_UAT_JBF</code> เท่านั้น และไม่รวมโฟลเดอร์ <code>*_BK11122025</code></p>
+          </div>
+
+          <div class="panel verdict-panel">
+            <p>
+              export รอบนี้มีทั้งหมด 12 procedure แบบ active และรูปแบบ code เปลี่ยนจากรอบก่อนค่อนข้างมาก
+              โดยเฉพาะ <code>NDBS_BUDGET_CONTROL</code> ที่เหลือแค่ wrapper route และ
+              <code>NDBS_UpdateAllBudgetAmount</code> / <code>NDBS_UpdateBudgetAmount</code> ที่ถูกแก้แล้ว
+              ดังนั้นตารางนี้จะแยกให้ชัดว่าไฟล์ไหนยังมี issue เปิดอยู่ และไฟล์ไหนถือว่า fixed แล้ว
+            </p>
+          </div>
+
+          <div class="panel issue-table-wrap">
+            <h3>สรุปจำนวนจุดผิดหลักต่อไฟล์</h3>
+            <div class="issue-table-scroll">
+              <table class="issue-table">
+                <thead>
+                  <tr>
+                    <th>ไฟล์</th>
+                    <th>WHERE</th>
+                    <th>IF / Flow</th>
+                    <th>JOIN</th>
+                    <th>Other</th>
+                    <th>หมายเหตุ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>NDBS_BUDGET_CONTROL.sql</td>
+                    <td>0</td>
+                    <td>2</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>route ของ JE ใช้ <code>object_type = '19'</code> ซ้ำ และยังจบด้วย <code>call NDBS_UpdateAllBudgetAmount</code></td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_AP.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>1</td>
+                    <td>0</td>
+                    <td>มี join หนึ่งจุดที่ใช้ <code>U_FormatCode = AcctCode</code></td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_APCN.sql</td>
+                    <td>0</td>
+                    <td>2</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td><code>IF BCount &gt;= 0</code> เป็นจริงเสมอ 2 จุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGETNOTIFICATION.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>4</td>
+                    <td>1</td>
+                    <td>account mapping ไม่สม่ำเสมอ และมี engine คำนวณงบซ้ำอีกชุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_BEGINING.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>20</td>
+                    <td>พบ <code>Call NDBS_UpdateBudgetAmount</code> ซ้ำ 20 ครั้งใน flow rebuild</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_PR.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>4</td>
+                    <td>พบ <code>Call NDBS_UpdateBudgetAmount</code> ซ้ำ 4 จุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_PO.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>ยังไม่พบ defect หลักจากไฟล์ active รอบล่าสุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_GRPO.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>ยังไม่พบ defect หลักจากไฟล์ active รอบล่าสุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_JE.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>ตัว procedure เองสอดคล้องกับ <code>ObjectType = '30'</code> และใช้เป็นหลักฐานยืนยัน bug ที่ wrapper</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_BUDGET_RETURN.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>ยังไม่พบ defect หลักจากไฟล์ active รอบล่าสุด</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_UpdateAllBudgetAmount.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>fixed แล้วใน latest export: เปลี่ยนเป็น set-based และใช้ <code>BudgetYear = T."Code"</code> ถูกต้อง</td>
+                  </tr>
+                  <tr>
+                    <td>NDBS_UpdateBudgetAmount.sql</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>fixed แล้วใน latest export: project query ใช้ <code>BudgetYear = :budgetyear</code> / <code>currloop."Code"</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="severity-stack">
+            <section class="severity-group">
+              <div class="severity-head">
+                <span class="severity-label severity-low">ระดับต่ำ</span>
+                <h3>ยังไม่ใช่ defect เชิงผลลัพธ์โดยตรง แต่สร้าง churn และทำให้ flow หนักเกินจำเป็น</h3>
+              </div>
+              <div class="findings-grid">
+                <article class="finding-card panel">
+                  <span class="finding-type">Recalc Churn</span>
+                  <h3>NDBS_BUDGET_BEGINING.sql / NDBS_BUDGET_PR.sql</h3>
+                  <pre><code><span class="code-bad-line">Call NDBS_UpdateBudgetAmount(...)</span></code></pre>
+                  <p class="finding-impact">สองไฟล์นี้ยังเรียก helper ซ้ำหลายครั้งใน flow เดียว จึงเพิ่ม churn ฝั่ง recalc แม้ helper เวอร์ชันล่าสุดจะถูกแก้เร็วขึ้นแล้วก็ตาม</p>
                 </article>
               </div>
-            </div>
-          </details>
-        </div>
-      </section>
+            </section>
 
-      <section class="slide section" id="slowdown">
-        <div class="section-head">
-          <p class="eyebrow">Slow Flow</p>
-          <h2>Flow ที่ทำให้ SAP ช้า</h2>
-          <p>ประเด็นสำคัญมีแค่เส้นทางนี้: <code>Login -> NDBS_BUDGET_CONTROL -> NDBS_UpdateAllBudgetAmount -> for loop ทั้งชุด</code></p>
-        </div>
-
-        <div class="impact-grid">
-          <article class="impact-card panel">
-            <h3>1. NDBS_BUDGET_CONTROL ทำอะไร</h3>
-            <details class="flow-code-detail">
-              <summary>ดูโค้ด</summary>
-              <pre><code>if :error = 0 then
-  IF ( :object_type in ('30','22','21','20','18','19')) then
-    ...
-    INSERT INTO "NDBS_BGC_OBDE" ...
-    INSERT INTO "NDBS_BGC_OBPE" ...
-    Call NDBS_UpdateBudgetAmount(...)
-  end if;
+            <section class="severity-group">
+              <div class="severity-head">
+                <span class="severity-label severity-medium">ระดับกลาง</span>
+                <h3>ยังไม่ใช่ defect ที่พังทันที แต่เปิดช่องให้ flow หนักหรือข้อมูล drift ได้</h3>
+              </div>
+              <div class="findings-grid">
+                <article class="finding-card panel">
+                  <span class="finding-type">Global Refresh</span>
+                  <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                  <pre><code>if (error = 0) then
+  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+  <span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span>
 end if;</code></pre>
-            </details>
-            <p>
-              ตัวนี้เป็น budget control หลักของระบบ เมื่อถูกเรียกจะวิ่งแตก logic ตามประเภทเอกสาร แล้วเขียน movement
-              ลงตาราง budget เช่น <code>NDBS_BGC_OBDE</code> และ <code>NDBS_BGC_OBPE</code> พร้อมอัปเดตยอด budget บางส่วนระหว่างทาง
-            </p>
-          </article>
-          <article class="impact-card panel">
-            <h3>2. เมื่อ NDBS_BUDGET_CONTROL ทำงานก็จะไปเรียกใช้ NDBS_UpdateAllBudgetAmount ต่อ</h3>
-            <details class="flow-code-detail">
-              <summary>ดูโค้ด</summary>
-              <pre><code>DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
-DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
-<span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span></code></pre>
-            </details>
-            <p>
-              แปลว่าเมื่อ budget control ทำงานเสร็จ ระบบจะไม่หยุดแค่นั้น แต่จะไปเรียก
-              <code>NDBS_UpdateAllBudgetAmount</code> ต่อทันที เพื่อคำนวณงบใหม่ทั้งก้อน จึงทำให้ช่วง login กลายเป็นงานหนักทันที
-            </p>
-          </article>
-          <article class="impact-card panel">
-            <h3>3. NDBS_UpdateAllBudgetAmount เป็นงานหนัก</h3>
-            <details class="flow-code-detail">
-              <summary>ดูโค้ด</summary>
-              <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
-Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL";
+                  <p class="finding-impact">wrapper ยังลงท้ายด้วย full refresh ทุกครั้งที่ route สำเร็จ แม้ helper ล่าสุดจะเร็วขึ้นแล้วก็ตาม จึงยังเป็น architecture smell ที่ควรระวัง</p>
+                </article>
 
-for currloop as loopbudgetdept do
-...
-end for;
-
-for currloop as loopbudgetproj do
-...
-end for;</code></pre>
-            </details>
-            <p>
-              procedure นี้จะวนทีละแถวผ่าน budget department และ budget project ทั้งชุด จากนั้นไป
-              <code>SUM</code> ยอดจาก movement tables แล้ว <code>UPDATE</code> budget master ทีละแถว จึงช้ามากเมื่อข้อมูลเยอะ
-              และยิ่งหนักขึ้นอีกถ้ามีหลาย user login พร้อมกัน
-            </p>
-          </article>
-        </div>
-
-        <div class="panel verdict-panel">
-          <p>
-            สรุปคือ login ไม่ได้เป็นแค่ขั้นตอนเข้าใช้งานธรรมดา แต่ถูกพาไปทำ budget processing ทันที และตอนจบยังโดนสั่ง
-            <code>full refresh</code> ของงบทั้งระบบผ่าน <code>NDBS_UpdateAllBudgetAmount</code> ที่ใช้
-            <code>for loop</code> วนข้อมูลทั้งชุด จึงเป็นเหตุผลหลักที่ทำให้ SAP ช้า
-          </p>
-        </div>
-      </section>
-
-      <section class="slide section" id="wrong-sql">
-        <div class="section-head">
-          <p class="eyebrow">Wrong SQL</p>
-          <h2>SQL ที่พบปัญหา</h2>
-          <p>จัดจากระดับต่ำไปถึงร้ายแรง เพื่อแยกให้ออกว่าอะไรเป็น defect เชิงข้อมูล และอะไรเป็น defect เชิง flow/performance</p>
-        </div>
-
-        <div class="panel verdict-panel">
-          <p>
-            รีวิวนี้ครอบคลุม <code>SBO_SP_TRANSACTIONNOTIFICATION</code>, <code>NDBS_BUDGETNOTIFICATION</code>,
-            <code>NDBS_BUDGET_BEGINING</code>, <code>NDBS_BUDGET_PR</code>, <code>NDBS_BUDGET_PO</code>,
-            <code>NDBS_BUDGET_CONTROL</code>,
-            <code>NDBS_UpdateBudgetAmount</code> และ <code>NDBS_UpdateAllBudgetAmount</code>
-            โดยส่วนนี้เป็น review ทั้ง codebase ไม่ได้หมายความว่าทุกจุดอยู่ใน incident path ตอน login
-          </p>
-        </div>
-
-        <div class="panel issue-table-wrap">
-          <h3>สรุปจำนวนจุดผิดหลักต่อไฟล์</h3>
-          <div class="issue-table-scroll">
-            <table class="issue-table">
-              <thead>
-                <tr>
-                  <th>ไฟล์</th>
-                  <th>WHERE</th>
-                  <th>IF / Flow</th>
-                  <th>JOIN</th>
-                  <th>หมายเหตุ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>NDBS_UpdateAllBudgetAmount.sql</td>
-                  <td>2</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>Project query ใช้ <code>BudgetYear = U_Project</code></td>
-                </tr>
-                <tr>
-                  <td>NDBS_UpdateBudgetAmount.sql</td>
-                  <td>2</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>ผิดแบบเดียวกับ full refresh helper</td>
-                </tr>
-                <tr>
-                  <td>NDBS_BUDGET_CONTROL.sql</td>
-                  <td>0</td>
-                  <td>6</td>
-                  <td>1</td>
-                  <td>มี dead gate, OR ผิด, <code>BCount &gt;= 0</code> และ wrong variable</td>
-                </tr>
-                <tr>
-                  <td>SBO_SP_TRANSACTIONNOTIFICATION.sql</td>
-                  <td>9</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>condition เช็ก budget/ปีงบไม่สม่ำเสมอ</td>
-                </tr>
-                <tr>
-                  <td>NDBS_BUDGETNOTIFICATION.sql</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>4</td>
-                  <td>account mapping ไม่สม่ำเสมอ และมี engine คำนวณงบซ้ำอีกชุด</td>
-                </tr>
-                <tr>
-                  <td>NDBS_BUDGET_BEGINING.sql</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>ยังไม่เจอ WHERE/IF/JOIN ผิดเด่น ๆ แต่ยิง helper ซ้ำ</td>
-                </tr>
-                <tr>
-                  <td>NDBS_BUDGET_PR.sql</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>ยังไม่เจอ WHERE/IF/JOIN ผิดเด่น ๆ แต่ยิง helper ซ้ำ</td>
-                </tr>
-                <tr>
-                  <td>NDBS_BUDGET_PO.sql</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>ไม่เด่นเรื่อง WHERE/IF/JOIN แต่จบด้วย <code>call NDBS_UpdateAllBudgetAmount</code></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="severity-stack">
-          <section class="severity-group">
-            <div class="severity-head">
-              <span class="severity-label severity-low">ระดับต่ำ</span>
-              <h3>ยังไม่ใช่ defect หลัก แต่สร้างภาระและขยายผลของ helper เดิม</h3>
-            </div>
-            <div class="findings-grid">
-              <article class="finding-card panel">
-                <span class="finding-type">Recalc Churn</span>
-                <h3>NDBS_BUDGET_BEGINING.sql / NDBS_BUDGET_PR.sql</h3>
-                <pre><code><span class="code-bad-line">Call NDBS_UpdateBudgetAmount(...)</span></code></pre>
-                <p class="finding-impact">ทั้งสองไฟล์ยิง helper ทีละบรรทัดระหว่าง rebuild/posting จึงขยายผลของ helper ที่ผิด และเพิ่มภาระ recalc โดยไม่จำเป็น</p>
-              </article>
-            </div>
-          </section>
-
-          <section class="severity-group">
-            <div class="severity-head">
-              <span class="severity-label severity-medium">ระดับกลาง</span>
-              <h3>เริ่มมี logic ที่ตีความข้อมูลผิดหรือเปิดช่องให้ drift ได้</h3>
-            </div>
-            <div class="findings-grid">
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Condition</span>
-                <h3>SBO_SP_TRANSACTIONNOTIFICATION.sql</h3>
-                <pre><code><span class="code-bad-line">and ifnull(B."U_BudgetAmt",0) =0</span>
-...
-<span class="code-bad-line">and LEFT(T1."U_NDBS_BudgetYear",3) <> '202'</span>
-<span class="code-bad-line">and LEFT(T1."U_NDBS_BudgetYear",4) < '2024'</span></code></pre>
-                <p class="finding-impact">เอา “ไม่พบ budget setup” กับ “budget amount = 0” มารวมกัน และเช็กปีงบด้วย string คนละแบบ จึงเสี่ยง block ผิดหรือ validate ไม่ตรงกันเอง</p>
-              </article>
-
-              <article class="finding-card panel">
-                <span class="finding-type">Duplicate Engine</span>
-                <h3>NDBS_BUDGETNOTIFICATION.sql</h3>
-                <pre><code>Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."AcctCode"
+                <article class="finding-card panel">
+                  <span class="finding-type">Duplicate Engine</span>
+                  <h3>NDBS_BUDGETNOTIFICATION.sql</h3>
+                  <pre><code>Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."AcctCode"
 ...
 <span class="code-bad-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_AccountCode" = T4."FormatCode"</span>
 ...
 <span class="code-bad-line">Update "@NDBS_BGC_BPJL" Set "U_BudgetBal" = ...</span></code></pre>
-                <p class="finding-impact">ไฟล์นี้มี engine คำนวณงบของตัวเอง แก้ยอดใน master ตรง ๆ และยังใช้ account mapping คนละแบบกับไฟล์อื่น จึงเสี่ยง drift จาก control/helper หลัก</p>
-              </article>
+                  <p class="finding-impact">notification layer นี้ยังคำนวณ budget master เองและใช้ account mapping ไม่สม่ำเสมอ จึงเสี่ยง drift จาก procedure หลักของระบบ</p>
+                </article>
+              </div>
+            </section>
 
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Variable</span>
-                <h3>NDBS_BUDGET_CONTROL.sql</h3>
-                <pre><code>OldDept = currloop."OldOcrCode";
-...
-<span class="code-bad-line">Call NDBS_UpdateBudgetAmount(:OldGroup,TO_NVARCHAR(:BYear),'D',:OldBDept);</span></code></pre>
-                <p class="finding-impact">assign ค่าไว้ใน <code>OldDept</code> แต่ตอน call กลับส่ง <code>OldBDept</code> จึงเสี่ยง recalculate ผิด department</p>
-              </article>
-            </div>
-          </section>
-
-          <section class="severity-group">
-            <div class="severity-head">
-              <span class="severity-label severity-high">ระดับสูง</span>
-              <h3>มีเงื่อนไขและ join ที่ทำให้เข้า branch ผิดหรือ map budget group ผิดได้</h3>
-            </div>
-            <div class="findings-grid">
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Flow</span>
-                <h3>NDBS_BUDGET_CONTROL.sql</h3>
-                <pre><code>IF ( :object_type in ('30','22','21','20','18','19')) then
-  ...
-<span class="code-bad-line">if ( :object_type = '1470000113') then</span>
-    Call NDBS_BUDGET_PR (...)</code></pre>
-                <p class="finding-impact">เช็ก PR branch ไว้ข้างใน แต่ gate ด้านนอกไม่เปิดให้ <code>1470000113</code> ผ่าน จึงเสี่ยงไม่เข้า logic ที่ตั้งใจไว้</p>
-              </article>
-
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Join</span>
-                <h3>NDBS_BUDGET_CONTROL.sql</h3>
-                <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
+            <section class="severity-group">
+              <div class="severity-head">
+                <span class="severity-label severity-high">ระดับสูง</span>
+                <h3>เป็น defect ที่มีผลต่อการ map budget หรือการตัดสินใจของ branch โดยตรง</h3>
+              </div>
+              <div class="findings-grid">
+                <article class="finding-card panel">
+                  <span class="finding-type">Wrong Join</span>
+                  <h3>NDBS_BUDGET_AP.sql</h3>
+                  <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
 <span class="code-bad-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span></code></pre>
-                <p class="finding-impact">join <code>U_FormatCode</code> เข้ากับ <code>AcctCode</code> โดยตรง ทั้งที่จุดอื่นใช้ <code>FormatCode</code> จึงเสี่ยง map budget group ผิด</p>
-              </article>
+                  <p class="finding-impact">ใน branch เดียวกันจุดอื่นใช้ <code>T4."FormatCode"</code> แต่บรรทัดนี้กลับใช้ <code>AcctCode</code> จึงเสี่ยง map budget group ผิดทันที</p>
+                </article>
 
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Condition</span>
-                <h3>NDBS_BUDGET_CONTROL.sql</h3>
-                <pre><code><span class="code-bad-line">IF (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then</span>
+                <article class="finding-card panel">
+                  <span class="finding-type">Wrong Condition</span>
+                  <h3>NDBS_BUDGET_APCN.sql</h3>
+                  <pre><code><span class="code-bad-line">IF BCount >= 0 then</span>
 ...
 <span class="code-bad-line">IF BCount >= 0 then</span></code></pre>
-                <p class="finding-impact">ใช้ <code>OR</code> กับ project และใช้เงื่อนไขที่จริงเสมอ จึงเปิดให้ branch ทำงานผิดจังหวะและ recalc เกินจำเป็น</p>
-              </article>
-            </div>
-          </section>
+                  <p class="finding-impact">สองเงื่อนไขนี้เป็นจริงเสมอ ทำให้ block หลังยกเลิกเอกสารทำงานต่อแม้ไม่มี row ให้ใช้อ้างอิงจริง</p>
+                </article>
+              </div>
+            </section>
 
-          <section class="severity-group">
-            <div class="severity-head">
-              <span class="severity-label severity-critical">ระดับร้ายแรง</span>
-              <h3>เป็นจุดที่ทำให้ทั้งข้อมูลเพี้ยนและ flow หนักพร้อมกัน</h3>
-            </div>
-            <div class="findings-grid">
-              <article class="finding-card panel">
-                <span class="finding-type">Wrong Query</span>
-                <h3>NDBS_UpdateAllBudgetAmount.sql / NDBS_UpdateBudgetAmount.sql</h3>
-                <pre><code>WHERE "Project" = currloop."U_Project"
-AND "BudgetGroup" = currloop."U_GroupCode"
-<span class="code-bad-line">AND "BudgetYear" = currloop."U_Project"</span></code></pre>
-                <p class="finding-impact">เอา project code ไปเทียบกับ <code>BudgetYear</code> โดยตรง ทำให้ยอด budget ฝั่ง project เสี่ยงผิดได้ทันที ทั้งใน full refresh และ targeted helper</p>
-              </article>
-
-              <article class="finding-card panel">
-                <span class="finding-type">Critical Flow</span>
-                <h3>NDBS_BUDGET_CONTROL.sql / NDBS_BUDGET_PO.sql</h3>
-                <pre><code>DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
-DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
-<span class="code-bad-line">call NDBS_UpdateAllBudgetAmount;</span></code></pre>
-                <p class="finding-impact">หลาย entry point ลงท้ายด้วย full refresh ตัวเดียวกัน ทำให้ทุก posting หรือ startup call เสี่ยงลากทั้งระบบไปคำนวณงบใหม่ทั้งก้อน</p>
-              </article>
-            </div>
-          </section>
-        </div>
-
-        <div class="panel verdict-panel">
-          <p>
-            ถ้ามองทั้ง codebase จุดร้ายแรงสุดอยู่ที่ <strong>query ฝั่ง project ใช้ key ผิด</strong> และ <strong>หลาย procedure ลงท้ายด้วย full refresh</strong>
-            ส่วนจุดระดับสูงและกลางกระจายอยู่ใน control/notification layers ที่ใช้ join, condition และ validation ไม่สม่ำเสมอ
-          </p>
-        </div>
-
-        <div class="panel verdict-panel">
-          <h3>ทางทีม IT ได้แก้ไขประสิทธิภาพของ NDBS_UpdateAllBudgetAmount.sql เพื่อให้ใช้งานได้ตามปกติ</h3>
-          <p>
-            เพราะจุดที่ถูกแก้คือคอขวดหลักที่ถูกเรียกต่อจาก <code>NDBS_BUDGET_CONTROL</code> ตอน login โดยตรง
-            เดิม procedure นี้ใช้วิธีวน <code>for loop</code> ผ่าน budget ทั้งชุด แล้วค่อย <code>SUM</code> และ <code>UPDATE</code> ทีละแถว
-            แต่ version ที่ทีม IT ปรับใหม่เปลี่ยนเป็นการ <code>UPDATE</code> แบบ set-based ครั้งใหญ่ไม่กี่ครั้งแทน
-          </p>
-
-          <div class="comparison-grid">
-            <article class="comparison-card">
-              <span>แบบเดิม</span>
-              <strong>ช้าเพราะทำงานแบบทีละแถว</strong>
-              <p>
-                ใช้ cursor สองชุดวิ่งผ่าน budget department และ budget project ทั้งหมด แล้วในแต่ละรอบยังไป
-                <code>SELECT SUM</code> และ <code>UPDATE</code> ซ้ำอีก ทำให้เกิดงานจำนวนมากแบบ row-by-row
-              </p>
-            </article>
-
-            <article class="comparison-card">
-              <span>แบบใหม่</span>
-              <strong>เร็วขึ้นเพราะรวมงานเป็น bulk update</strong>
-              <p>
-                rewrite ให้เหลือการ <code>UPDATE</code> แบบ set-based สองก้อนใหญ่แทนการวนทีละแถว
-                ทำให้ HANA ประมวลผลเป็นชุดเดียวและลด overhead จาก loop ซ้ำ ๆ ลงอย่างมาก
-              </p>
-            </article>
+            <section class="severity-group">
+              <div class="severity-head">
+                <span class="severity-label severity-critical">ระดับร้ายแรง</span>
+                <h3>เป็น defect ที่ทำให้ route ผิดตั้งแต่ต้นและกระทบ flow ของทั้งโมดูล</h3>
+              </div>
+              <div class="findings-grid">
+                <article class="finding-card panel">
+                  <span class="finding-type">Wrong Route</span>
+                  <h3>NDBS_BUDGET_CONTROL.sql</h3>
+                  <pre><code>elseif ( :object_type = '19') then
+  Call NDBS_BUDGET_APCN (...);
+<span class="code-bad-line">elseif ( :object_type = '19') then</span>
+<span class="code-bad-line">  Call NDBS_BUDGET_JE (...);</span></code></pre>
+                  <p class="finding-impact">wrapper ใช้ <code>object_type = '19'</code> ซ้ำทั้ง APCN และ JE ทำให้ JE branch ไม่ reachable ตามลำดับเงื่อนไขปัจจุบัน และน่าจะตั้งใจใช้ <code>'30'</code> มากกว่า</p>
+                </article>
+              </div>
+            </section>
           </div>
 
-          <details class="hero-code-detail panel">
-            <summary>ดูโค้ดเปรียบเทียบแบบเดิม / แบบใหม่</summary>
-            <div class="hero-code-body comparison-grid">
-              <article class="hero-code-panel">
-                <div class="hero-code-head">
-                  <span class="source-tag">แบบเดิม</span>
-                  <strong>cursor + for loop + SELECT SUM/UPDATE ทีละแถว</strong>
-                </div>
-                <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
+          <div class="panel verdict-panel">
+            <p>
+              ถ้ามองจาก export ล่าสุด จุดร้ายแรงสุดย้ายจาก helper เดิมมาอยู่ที่
+              <strong>wrapper route และ module-specific logic</strong> โดยเฉพาะ
+              <code>NDBS_BUDGET_CONTROL.sql</code>, <code>NDBS_BUDGET_AP.sql</code>,
+              <code>NDBS_BUDGET_APCN.sql</code> และ <code>NDBS_BUDGETNOTIFICATION.sql</code>
+            </p>
+          </div>
+
+          <div class="panel verdict-panel">
+            <h3>ทางทีม IT ได้แก้ไขประสิทธิภาพของ NDBS_UpdateAllBudgetAmount.sql เพื่อให้ใช้งานได้ตามปกติ</h3>
+            <p>
+              export ล่าสุดยืนยันแล้วว่า procedure นี้ไม่ใช่เวอร์ชัน cursor / for loop เดิมอีกต่อไป
+              แต่ถูก rewrite ให้เป็น <code>set-based bulk update</code> แล้ว จึงอธิบายได้ตรงกับอาการจริงว่า
+              หลังแก้ไฟล์นี้ ประสิทธิภาพกลับมาใช้งานได้ตามปกติ
+            </p>
+
+            <div class="comparison-grid">
+              <article class="comparison-card">
+                <span>แบบเดิม</span>
+                <strong>ช้าเพราะทำงานแบบทีละแถว</strong>
+                <p>
+                  ใช้ cursor สองชุดวิ่งผ่าน budget department และ budget project ทั้งหมด แล้วในแต่ละรอบยังไป
+                  <code>SELECT SUM</code> และ <code>UPDATE</code> ซ้ำอีก ทำให้เกิดงานจำนวนมากแบบ row-by-row
+                </p>
+              </article>
+
+              <article class="comparison-card">
+                <span>แบบใหม่</span>
+                <strong>เร็วขึ้นเพราะรวมงานเป็น bulk update</strong>
+                <p>
+                  rewrite ให้เหลือการ <code>UPDATE</code> แบบ set-based สองก้อนใหญ่แทนการวนทีละแถว
+                  ทำให้ HANA ประมวลผลเป็นชุดเดียวและลด overhead จาก loop ซ้ำ ๆ ลงอย่างมาก
+                </p>
+              </article>
+            </div>
+
+            <details class="hero-code-detail panel">
+              <summary>ดูโค้ดเปรียบเทียบแบบเดิม / แบบใหม่</summary>
+              <div class="hero-code-body comparison-grid">
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">แบบเดิม</span>
+                    <strong>cursor + for loop + SELECT SUM/UPDATE ทีละแถว</strong>
+                  </div>
+                  <pre><code>Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL";
 Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL";
 
 for currloop as loopbudgetdept do
@@ -424,46 +455,47 @@ for currloop as loopbudgetproj do
 
   Update "@NDBS_BGC_BPJL" Set ...
 end for;</code></pre>
-              </article>
+                </article>
 
-              <article class="hero-code-panel">
-                <div class="hero-code-head">
-                  <span class="source-tag">แบบใหม่</span>
-                  <strong>set-based bulk update เป็นชุดใหญ่แทนการวนทีละแถว</strong>
-                </div>
-                <pre><code>UPDATE SBO_JBF."@NDBS_BGC_BDPL" T SET
+                <article class="hero-code-panel">
+                  <div class="hero-code-head">
+                    <span class="source-tag">แบบใหม่ใน export ล่าสุด</span>
+                    <strong>set-based bulk update เป็นชุดใหญ่แทนการวนทีละแถว</strong>
+                  </div>
+                  <pre><code>UPDATE "@NDBS_BGC_BDPL" T SET
   T."U_BudgetRes" = IFNULL((
     SELECT SUM(CASE WHEN D."BudgetType" = 'R'
                     AND D."BudgetStatus" <> 'C'
                     THEN IFNULL(D."Amount", 0) ELSE 0 END)
-    FROM SBO_JBF."NDBS_BGC_OBDE" D
+    FROM "NDBS_BGC_OBDE" D
     WHERE D."Department" = T."U_Department"
       AND D."BudgetGroup" = T."U_GroupCode"
       AND D."BudgetYear"  = T."Code"
   ), 0),
-  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0),
-  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0),
-  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBDE" D ...), 0);
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBDE" D ...), 0);
 
-UPDATE SBO_JBF."@NDBS_BGC_BPJL" T SET
-  T."U_BudgetRes" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
-  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
-  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0),
-  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM SBO_JBF."NDBS_BGC_OBPE" D ...), 0);</code></pre>
-              </article>
-            </div>
-          </details>
+UPDATE "@NDBS_BGC_BPJL" T SET
+  T."U_BudgetRes" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetAct" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetBal" = IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0),
+  T."U_BudgetRem" = IFNULL(T."U_BudgetAmt", 0) - IFNULL((SELECT SUM(...) FROM "NDBS_BGC_OBPE" D ...), 0);</code></pre>
+                </article>
+              </div>
+            </details>
 
-          <p>
-            ดังนั้นเมื่อแก้ <code>NDBS_UpdateAllBudgetAmount.sql</code> แล้วอาการช้าหายไป จึงชี้ได้ชัดว่าคอขวดหลักอยู่ที่ procedure นี้จริง
-            ไม่ใช่แค่เพราะ Budget ถูกเรียกตอน login แต่เป็นเพราะสิ่งที่ procedure นี้ทำหลังถูกเรียกต่างหาก
-            อย่างไรก็ตาม ประเด็นความเร็วที่ดีขึ้นนี้เป็นคนละเรื่องกับประเด็นข้อมูล budget ฝั่ง project ที่ยังเสี่ยงเพี้ยนจาก query key ที่ผิด
-          </p>
-        </div>
-      </section>
-    </main>
+            <p>
+              และใน export ล่าสุด <code>NDBS_UpdateBudgetAmount.sql</code> ก็ถูกแก้ให้ใช้ key ของ project ถูกต้องแล้วเช่นกัน
+              ดังนั้น issue รอบนี้ไม่ควรสรุปว่า helper สองตัวนี้ยังผิดอยู่ แต่ควรสรุปว่า
+              <strong>performance และ project-year query ของ helper ถูกแก้แล้ว</strong>
+              ส่วน issue ที่ยังเปิดอยู่ตอนนี้อยู่ใน wrapper และ procedure ย่อยบางไฟล์แทน
+            </p>
+          </div>
+        </section>
+      </main>
 
-    <footer class="report-footer" aria-hidden="true"></footer>
+      <footer class="report-footer" aria-hidden="true"></footer>
     </div>
 
     <script src="../assets/js/problem-report.js"></script>
