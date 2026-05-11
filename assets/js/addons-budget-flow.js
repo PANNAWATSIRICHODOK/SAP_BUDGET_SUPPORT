@@ -182,7 +182,7 @@ const workflowData = {
     to: "Approval / PO",
     impact: "ถ้า PR ไม่ผ่าน จะหยุดที่คำขอและยังไม่มีฐานให้ PO อ้างอิงต่อ",
     pass: "เมื่อผ่านด่านต้นทางแล้ว PR พร้อมเข้าสู่ approval และเป็นฐานให้ PO แต่ในชั้นคุมงบขั้นสุดท้ายยังควรตรวจซ้ำอีกครั้ง",
-    note: "ในด่านคุมงบขั้นสุดท้ายมี call ไป NDBS_BUDGET_PR แต่จากโค้ดปัจจุบัน branch นี้ดูเหมือนยัง unreachable เพราะ outer IF ไม่รวม object_type ของ PR",
+    note: "คู่มือระบุว่า Reserved มาจาก PR/PO แต่ latest export มี PR validation เท่านั้น ขณะที่ dispatch ไป NDBS_BUDGET_PR ถูก comment และ TransactionNotification ไม่ได้ส่ง object_type 1470000113 เข้า Budget Control",
     caption: "4 จุด block ของ PR และ 1 ความเสี่ยงในด่านคุมงบขั้นสุดท้าย",
     tags: ["ด่านตรวจข้อมูลต้นทาง", "ต้นทางขอใช้เงิน", "ก่อน PO"],
     rules: [
@@ -217,9 +217,9 @@ const workflowData = {
       {
         title: "Final layer ของ PR ดูเหมือนยังไม่ถูกเรียก",
         badge: "Urgent finding",
-        when: "NDBS_BUDGET_CONTROL เปิด outer IF แค่ 30, 22, 21, 20, 18, 19 แต่ด้านในยังมี if object_type = 1470000113",
-        action: "Call NDBS_BUDGET_PR อาจไม่ถูกเข้าถึงจริง",
-        impact: "PR อาจผ่านแค่ด่านต้นทาง แต่ไม่ถูกคุมด้วย logic ขั้นสุดท้ายตามที่ตั้งใจ",
+        when: "NDBS_BUDGET_CONTROL มี PR validation แต่ส่วน dispatch ไป NDBS_BUDGET_PR ถูก comment ไว้",
+        action: "ต้องให้ vendor ยืนยันว่า PR reserve อยู่ใน layer ไหน หรือเปิด dispatch ให้ NDBS_BUDGET_PR ทำงาน",
+        impact: "ถ้าอิงคู่มือ PR ต้องมีผลกับ Reserved แต่หน้า code ล่าสุดยังไม่เห็นเส้นทาง final reserve ของ PR",
       },
     ],
   },
@@ -357,7 +357,7 @@ const workflowData = {
         title: "ผ่านแล้วลง actual ทันที",
         badge: "Final movement",
         when: "JE ผ่านด่านต้นทางและไม่มี error จากขั้นก่อนหน้า",
-        action: "ด่านคุมงบขั้นสุดท้าย insert movement ใหม่ลง OBDE/OBPE และเรียก NDBS_UpdateBudgetAmount",
+        action: "ด่านคุมงบขั้นสุดท้าย insert movement ใหม่ลง OBDE/OBPE และปล่อยให้ wrapper เรียก NDBS_UpdateAllBudgetAmount เพื่อ sync ยอดรวม",
         impact: "งบคงเหลือถูกปรับตาม JE ทันทีหลังบันทึก",
       },
     ],
@@ -372,7 +372,7 @@ const workflowData = {
     to: "NDBS_BGC_OBDE / NDBS_BGC_OBPE / transaction commit",
     impact: "ถึงด่านต้นทางจะผ่าน ถ้าด่านคุมงบขั้นสุดท้ายเจอ error หรือ logic ผิด เอกสารก็ยังไม่ commit",
     pass: "เมื่อไม่มี error ด่านคุมงบขั้นสุดท้ายจะเขียน movement ตามสถานะเอกสาร อัปเดตงบคงเหลือ และลบแถว Amount = 0 ก่อนจบ",
-    note: "จากไฟล์ปัจจุบัน ด่านคุมงบขั้นสุดท้ายรองรับ PO, GRPO, A/P Invoice, Goods Return, APCN และ JE ชัดเจน ส่วน PR branch ยังควรรีบตรวจเพราะดูเหมือนเข้าไม่ถึง",
+    note: "จาก latest export ด่านคุมงบขั้นสุดท้ายรองรับ PO, GRPO, A/P Invoice, Goods Return, APCN และ JE ชัดเจน แต่คู่มือระบุเพิ่มว่า Reserved ต้องรวม PR และ Actual ต้องรวม OUTGOING/GI/GR ซึ่งยังต้องเทียบกับ dispatch ให้ครบ",
     caption: "5 เรื่องที่ด่านคุมงบขั้นสุดท้ายทำจริงกับงบ และ 1 จุด block สำคัญที่ยัง active อยู่",
     tags: ["ด่านคุมงบขั้นสุดท้าย", "Reserve / Actual / Reverse", "ก่อน commit"],
     rules: [
@@ -394,7 +394,7 @@ const workflowData = {
         title: "อัปเดตงบคงเหลือทุกครั้ง",
         badge: "Recalculate",
         when: "หลังมี movement ใหม่หรือมีการกลับสถานะ movement เดิม",
-        action: "เรียก NDBS_UpdateBudgetAmount ซ้ำตาม budget group, year และ department/project ที่เกี่ยวข้อง",
+        action: "ทำ movement ให้ครบ แล้วให้ NDBS_BUDGET_CONTROL เรียก NDBS_UpdateAllBudgetAmount หลัง branch สำเร็จ",
         impact: "งบคงเหลือใน master ถูกปรับตามธุรกรรมล่าสุด",
       },
       {
@@ -419,7 +419,7 @@ const workflowCodeLibrary = {
   draft: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:155-176",
+      ref: "NDBS_BUDGET_CONTROL.sql:174-198",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt
   from ODRF t0
@@ -439,7 +439,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:180-200",
+      ref: "NDBS_BUDGET_CONTROL.sql:199-223",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt1
   from ODRF t0
@@ -455,7 +455,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 105",
-      ref: "Budget.sql:205-247",
+      ref: "NDBS_BUDGET_CONTROL.sql:224-270",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
   ...
   where T0."ObjType" IN ('1470000113','22')
@@ -472,7 +472,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 209",
-      ref: "Budget.sql:339-378",
+      ref: "NDBS_BUDGET_CONTROL.sql:358-401",
       snippet: `IF :object_type ='112' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -489,7 +489,7 @@ End If;`,
   pr: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:4-21",
+      ref: "NDBS_BUDGET_CONTROL.sql:23-41",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPRQ t0
@@ -506,7 +506,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 101",
-      ref: "Budget.sql:23-40",
+      ref: "NDBS_BUDGET_CONTROL.sql:42-61",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPRQ t0
@@ -521,7 +521,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 501",
-      ref: "Budget.sql:295-335",
+      ref: "NDBS_BUDGET_CONTROL.sql:314-357",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
   ...
   where IFNULL(T1."Project",'') = ''
@@ -537,7 +537,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 203",
-      ref: "Budget.sql:424-462",
+      ref: "NDBS_BUDGET_CONTROL.sql:443-483",
       snippet: `IF :object_type ='1470000113' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -551,25 +551,19 @@ End If;`,
 End If;`,
     },
     {
-      label: "PR final call ดูเหมือนเข้าไม่ถึง",
-      ref: "NDBS_BUDGET_CONTROL.sql:483-491",
-      snippet: `Insert Into NDBS_STORE_TABLE
-Values
-(:object_type,:transaction_type,:error,'',:datakey);
-
-if :error = 0 then
-  IF ( :object_type in ('30','22','21','20','18','19')) then
-    if ( :object_type = '1470000113') then
-      Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);
-    end if;
-  end if;
+      label: "PR final dispatch ถูก comment",
+      ref: "NDBS_BUDGET_CONTROL.sql:562-564",
+      snippet: `--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);
+if ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (:object_type,:transaction_type,:datakey,:error,:error_message);
 end if;`,
     },
   ],
   po: [
     {
       label: "ไม่มีฝ่าย | Error 100",
-      ref: "Budget.sql:43-61",
+      ref: "NDBS_BUDGET_CONTROL.sql:62-82",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPOR t0
@@ -585,7 +579,7 @@ End If;`,
     },
     {
       label: "ไม่มีปีงบ | Error 102",
-      ref: "Budget.sql:64-83",
+      ref: "NDBS_BUDGET_CONTROL.sql:83-104",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPOR t0
@@ -601,7 +595,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตามฝ่าย | Error 100",
-      ref: "Budget.sql:252-292",
+      ref: "NDBS_BUDGET_CONTROL.sql:271-313",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
   ...
   where IFNULL(T1."Project",'') = ''
@@ -617,7 +611,7 @@ End If;`,
     },
     {
       label: "ไม่มีงบตาม Project | Error 202",
-      ref: "Budget.sql:383-421",
+      ref: "NDBS_BUDGET_CONTROL.sql:402-442",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A') Then
   ...
   where ifnull(B."U_BudgetAmt",0) = 0
@@ -632,7 +626,7 @@ End If;`,
     },
     {
       label: "Budget Year ไม่ตรงรูปแบบ | Error 301",
-      ref: "Budget.sql:464-498",
+      ref: "NDBS_BUDGET_CONTROL.sql:484-520",
       snippet: `IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   select count(t0."DocEntry") into cnt
   from OPOR t0
@@ -656,7 +650,8 @@ VALUES
 (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
  :BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
+-- latest split procedure comments out targeted recalculation here
+-- wrapper calls NDBS_UpdateAllBudgetAmount after successful route`,
     },
     {
       label: "Department over budget ถูก comment ไว้",
@@ -684,7 +679,8 @@ select ..., -SUM("Amount"), "BudgetType", "ValueDate", 'A'
 From NDBS_BGC_OBPE
 Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');
 
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
+-- latest split procedure comments out targeted recalculation here
+-- wrapper calls NDBS_UpdateAllBudgetAmount after successful route
 
 INSERT INTO "NDBS_BGC_OBDE"
 (...)
@@ -696,7 +692,7 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
   ap: [
     {
       label: "A/P Invoice ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:86-107",
+      ref: "NDBS_BUDGET_CONTROL.sql:105-128",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPCH t0
@@ -712,7 +708,7 @@ End If;`,
     },
     {
       label: "A/P Credit Memo ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:110-130",
+      ref: "NDBS_BUDGET_CONTROL.sql:129-152",
       snippet: `IF :object_type ='19' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from ORPC t0
@@ -728,7 +724,7 @@ End If;`,
     },
     {
       label: "A/P Invoice ปีงบไม่ตรงรูปแบบ | Error 302",
-      ref: "Budget.sql:501-520",
+      ref: "NDBS_BUDGET_CONTROL.sql:521-542",
       snippet: `IF :object_type ='18' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."DocEntry") Into cnt
   from OPCH t0
@@ -777,7 +773,7 @@ end if;`,
   je: [
     {
       label: "ไม่มีปีงบ | Error 100",
-      ref: "Budget.sql:134-152",
+      ref: "NDBS_BUDGET_CONTROL.sql:153-173",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."TransId") Into cnt
   from OJDT t0
@@ -793,7 +789,7 @@ End If;`,
     },
     {
       label: "Budget Year ไม่ตรงรูปแบบ | Error 303",
-      ref: "Budget.sql:523-541",
+      ref: "NDBS_BUDGET_CONTROL.sql:543-560",
       snippet: `IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
   SELECT count(t0."TransId") Into cnt
   from OJDT t0
@@ -817,34 +813,45 @@ VALUES
 (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'30',:DocKey,:DocLine,
  '',0,0,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine);
 
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
+-- latest split procedure comments out targeted recalculation here
+-- wrapper calls NDBS_UpdateAllBudgetAmount after successful route`,
     },
   ],
   final: [
     {
       label: "ด่านต้นทางเรียก procedure ขั้นสุดท้าย",
-      ref: "Budget.sql:543-545",
+      ref: "SBO_SP_TRANSACTIONNOTIFICATION.sql:565-568",
       snippet: `if :error = 0 then
-  call NDBS_BUDGET_CONTROL (
-    :object_type,
-    :transaction_type,
-    :list_of_cols_val_tab_del,
-    :error,
-    :error_message
-  );
+  IF :object_type In ('22','18','19','30','24','46','59','60') then
+    call NDBS_BUDGET_CONTROL (
+      :object_type,
+      :transaction_type,
+      :datakey,
+      :list_of_key_cols_tab_del,
+      :list_of_cols_val_tab_del,
+      :error,
+      :error_message
+    );
+  end if;
 end if;`,
     },
     {
-      label: "เข้าด่านคุมงบขั้นสุดท้ายแล้ว log ก่อน",
-      ref: "NDBS_BUDGET_CONTROL.sql:483-489",
-      snippet: `Insert Into NDBS_STORE_TABLE
-Values
-(:object_type,:transaction_type,:error,'',:datakey);
-
-if :error = 0 then
-  IF ( :object_type in ('30','22','21','20','18','19')) then
-    ...
-  end if;
+      label: "Budget Control dispatch ล่าสุด",
+      ref: "NDBS_BUDGET_CONTROL.sql:562-575",
+      snippet: `--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (...);
+if ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (...);
+elseif ( :object_type = '20') then
+  Call NDBS_BUDGET_GRPO (...);
+elseif ( :object_type = '18') then
+  Call NDBS_BUDGET_AP (...);
+elseif ( :object_type = '21') then
+  Call NDBS_BUDGET_RETURN (...);
+elseif ( :object_type = '19') then
+  Call NDBS_BUDGET_APCN (...);
+elseif ( :object_type = '30') then
+  Call NDBS_BUDGET_JE (...);
 end if;`,
     },
     {
@@ -856,7 +863,8 @@ VALUES
 (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
  :BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
+-- latest split procedure comments out targeted recalculation here
+-- wrapper calls NDBS_UpdateAllBudgetAmount after successful route`,
     },
     {
       label: "Project over budget | Error -32",
@@ -883,7 +891,7 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
     },
     {
       label: "ล้างแถว Amount = 0 ก่อนจบ",
-      ref: "NDBS_BUDGET_CONTROL.sql:2313-2314",
+      ref: "NDBS_BUDGET_CONTROL.sql:579-582",
       snippet: `DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
 DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;`,
     },
@@ -931,15 +939,15 @@ const ndbsWorkflowData = {
     to: "Reserve / Actual / Reverse paths",
     impact: "ถ้า route ผิดหรือ branch เข้าไม่ถึง movement งบจะไม่ถูกสร้างหรือถูกสร้างผิดเส้นทาง",
     pass: "แต่ละบรรทัดของเอกสารจะถูกส่งเข้าฝั่ง department หรือ project ตามข้อมูลจริง",
-    note: "จากโค้ดปัจจุบัน outer IF รองรับ 30, 22, 21, 20, 18, 19 ชัดเจน ส่วน PR ยังมีความเสี่ยงว่าถูกเรียกไม่ถึง",
+    note: "Budget Control รองรับ 22, 20, 18, 21, 19, 30 ชัดเจน แต่ TransactionNotification เรียก 22, 18, 19, 30, 24, 46, 59, 60 จึงต้องปรับให้ตรงกัน",
     caption: "3 เรื่องที่ตัดสินว่า transaction จะไปทางไหนต่อ",
     tags: ["Routing", "Department / Project", "Cursor based"],
     rules: [
       {
         title: "เลือก branch ตาม object type",
-        badge: "22 / 18 / 19 / 20 / 21 / 30",
-        when: "object_type อยู่ในกลุ่มที่ outer IF รองรับ",
-        action: "procedure เปิด cursor และเข้า logic ของเอกสารแต่ละประเภท",
+        badge: "22 / 20 / 18 / 21 / 19 / 30",
+        when: "object_type ตรงกับ dispatch ใน NDBS_BUDGET_CONTROL",
+        action: "procedure route ไป NDBS_BUDGET_PO, GRPO, AP, RETURN, APCN หรือ JE",
         impact: "เอกสารแต่ละชนิดถูกคุมด้วย movement logic ไม่เหมือนกัน",
       },
       {
@@ -950,11 +958,11 @@ const ndbsWorkflowData = {
         impact: "งบถูกขยับคนละ ledger ตามโครงสร้างงบที่ใช้จริง",
       },
       {
-        title: "APCN project path มีเงื่อนไขเสี่ยง",
+        title: "CALL list จาก TransactionNotification ยังไม่ตรง",
         badge: "High risk",
-        when: "branch ของ APCN ฝั่ง project ใช้ IF (Project IS NOT NULL) OR (Project != '')",
-        action: "อาจเข้า path ฝั่ง project แม้ค่า project ไม่สมบูรณ์",
-        impact: "เสี่ยง reverse หรือ update งบผิด branch",
+        when: "TransactionNotification ส่ง 46,59,60 แต่ Budget Control ไม่มี dispatch ทั้งที่คู่มือจัด OUTGOING/GI/GR เป็น Actual และยังไม่ส่ง 20,21 ทั้งที่มี dispatch",
+        action: "ปรับ CALL list และเพิ่ม dispatch ให้ตรงกับคู่มือ หรือยืนยันว่า logic เหล่านี้อยู่ใน layer อื่น",
+        impact: "บางเอกสารที่คู่มือบอกว่าต้องกระทบงบอาจไม่เกิด budget movement ใน procedure ชุดนี้",
       },
     ],
   },
@@ -968,7 +976,7 @@ const ndbsWorkflowData = {
     to: "Actual usage / Close / Cancel",
     impact: "ถ้า reserve ไม่ผ่าน transaction จะไม่สามารถจองงบไว้ให้เอกสารนั้นได้",
     pass: "เมื่อผ่าน reserve ยอดคงเหลือจะถูกอัปเดตและเอกสารพร้อมไปสู่ขั้น downstream",
-    note: "project side ยัง block over budget อยู่จริง แต่ department side มีบรรทัด block ถูก comment ออก",
+    note: "ใน latest split procedure หลายจุดที่เคยเรียก NDBS_UpdateBudgetAmount เฉพาะรายการถูก comment แล้ว และ wrapper จะเรียก NDBS_UpdateAllBudgetAmount ตอนจบแทน",
     caption: "3 เรื่องหลักของช่วงที่เริ่มจองงบจริง",
     tags: ["BudgetType = R", "PO reserve", "ก่อน actual"],
     rules: [
@@ -983,7 +991,7 @@ const ndbsWorkflowData = {
         title: "จองงบฝั่ง Project",
         badge: "OBPE",
         when: "บรรทัด PO มี Project",
-        action: "insert reserve movement ลง NDBS_BGC_OBPE แล้วเรียก NDBS_UpdateBudgetAmount",
+        action: "insert reserve movement ลง NDBS_BGC_OBPE แล้วรอ wrapper sync ยอดรวมตอนจบ",
         impact: "ยอดงบของ project ถูกกันไว้เพื่อรอ actual usage",
       },
       {
@@ -1027,7 +1035,7 @@ const ndbsWorkflowData = {
         title: "อัปเดตงบคงเหลือหลัง actual",
         badge: "Recalculate",
         when: "หลัง insert actual movement หรือเปลี่ยนสถานะ movement เดิม",
-        action: "เรียก NDBS_UpdateBudgetAmount ตาม budget group, year และ owner งบ",
+        action: "wrapper เรียก NDBS_UpdateAllBudgetAmount หลัง branch สำเร็จ",
         impact: "budget remaining ถูก sync กับการใช้จริงล่าสุด",
       },
     ],
@@ -1084,11 +1092,11 @@ const ndbsWorkflowData = {
     tags: ["Cleanup", "Amount = 0", "Commit / Error"],
     rules: [
       {
-        title: "Recalculate ถูกเรียกซ้ำหลายจุด",
-        badge: "UpdateBudgetAmount",
-        when: "ทุกครั้งที่มี insert หรือ update movement สำคัญ",
-        action: "procedure เรียก NDBS_UpdateBudgetAmount เพื่อ sync ยอดคงเหลือใน master",
-        impact: "budget remaining ถูกปรับให้ตาม state ล่าสุดของเอกสาร",
+        title: "Recalculate ถูกเรียกตอนจบ wrapper",
+        badge: "UpdateAllBudgetAmount",
+        when: "branch ทำงานจบและ error ยังเป็น 0",
+        action: "procedure เรียก NDBS_UpdateAllBudgetAmount เพื่อ sync ยอดคงเหลือใน master ทั้งชุด",
+        impact: "budget remaining ถูกปรับให้ตาม state ล่าสุดของ ledger",
       },
       {
         title: "ลบแถวที่ amount เป็นศูนย์",
@@ -1112,49 +1120,67 @@ const ndbsWorkflowCodeLibrary = {
   entry: [
     {
       label: "ด่านต้นทางเรียก procedure ขั้นสุดท้าย",
-      ref: "Budget.sql:543-545",
+      ref: "SBO_SP_TRANSACTIONNOTIFICATION.sql:565-568",
       snippet: `if :error = 0 then
-  call NDBS_BUDGET_CONTROL (
-    :object_type,
-    :transaction_type,
-    :list_of_cols_val_tab_del,
-    :error,
-    :error_message
-  );
-end if;`,
-    },
-    {
-      label: "เข้า procedure แล้วเขียน log",
-      ref: "NDBS_BUDGET_CONTROL.sql:483-489",
-      snippet: `Insert Into NDBS_STORE_TABLE
-Values
-(:object_type,:transaction_type,:error,'',:datakey);
-
-if :error = 0 then
-  ...
-end if;`,
-    },
-  ],
-  route: [
-    {
-      label: "Outer IF และ PR branch ที่น่าสงสัย",
-      ref: "NDBS_BUDGET_CONTROL.sql:486-491",
-      snippet: `if :error = 0 then
-  IF ( :object_type in ('30','22','21','20','18','19')) then
-    if ( :object_type = '1470000113') then
-      Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);
-    elseif ( :object_type = '22') then
-      ...
-    end if;
+  IF :object_type In ('22','18','19','30','24','46','59','60') then
+    call NDBS_BUDGET_CONTROL (
+      :object_type,
+      :transaction_type,
+      :datakey,
+      :list_of_key_cols_tab_del,
+      :list_of_cols_val_tab_del,
+      :error,
+      :error_message
+    );
   end if;
 end if;`,
     },
     {
-      label: "APCN project condition ใช้ OR",
-      ref: "NDBS_BUDGET_CONTROL.sql:2014-2050",
-      snippet: `IF (currloop."Project" IS NOT NULL) OR (currloop."Project" != '') then
-  ...
+      label: "signature ของ Budget Control ล่าสุด",
+      ref: "NDBS_BUDGET_CONTROL.sql:1-10",
+      snippet: `CREATE PROCEDURE NDBS_BUDGET_CONTROL
+(
+  in object_type nvarchar(30),
+  in transaction_type nchar(1),
+  in datakey nvarchar(255),
+  in list_of_key_cols_tab_del nvarchar(255),
+  in list_of_cols_val_tab_del nvarchar(255),
+  out error int,
+  out error_message nvarchar(200)
+)`,
+    },
+  ],
+  route: [
+    {
+      label: "Dispatch ล่าสุดใน Budget Control",
+      ref: "NDBS_BUDGET_CONTROL.sql:562-575",
+      snippet: `--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (...);
+if ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (...);
+elseif ( :object_type = '20') then
+  Call NDBS_BUDGET_GRPO (...);
+elseif ( :object_type = '18') then
+  Call NDBS_BUDGET_AP (...);
+elseif ( :object_type = '21') then
+  Call NDBS_BUDGET_RETURN (...);
+elseif ( :object_type = '19') then
+  Call NDBS_BUDGET_APCN (...);
+elseif ( :object_type = '30') then
+  Call NDBS_BUDGET_JE (...);
 end if;`,
+    },
+    {
+      label: "CALL list ที่ยังไม่ตรง",
+      ref: "SBO_SP_TRANSACTIONNOTIFICATION.sql:566",
+      snippet: `-- TransactionNotification ส่งเข้า Budget Control
+'22','18','19','30','24','46','59','60'
+
+-- Budget Control dispatch รองรับจริง
+'22','20','18','21','19','30'
+
+-- คู่มือระบุ Actual รวม OUTGOING / GI / GR
+-- จึงต้องยืนยันหรือเพิ่ม logic สำหรับ 46 / 59 / 60`,
     },
   ],
   reserve: [
@@ -1169,7 +1195,8 @@ VALUES
 (:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
  :BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);`,
+-- latest split procedure comments out targeted recalculation here
+-- wrapper calls NDBS_UpdateAllBudgetAmount after successful route`,
     },
     {
       label: "Department over budget ถูก comment",
@@ -1248,14 +1275,17 @@ Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A');`,
   ],
   finalize: [
     {
-      label: "เรียก UpdateBudgetAmount ซ้ำหลายจุด",
-      ref: "NDBS_BUDGET_CONTROL.sql:538, 601, 649, 1411, 1635, 2268, 2308",
-      snippet: `Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
-Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);`,
+      label: "เรียก UpdateAllBudgetAmount ตอนจบ",
+      ref: "NDBS_BUDGET_CONTROL.sql:579-582",
+      snippet: `if (error = 0) then
+  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+  call NDBS_UpdateAllBudgetAmount;
+end if;`,
     },
     {
       label: "ล้างแถว Amount = 0 ก่อนจบ",
-      ref: "NDBS_BUDGET_CONTROL.sql:2313-2314",
+      ref: "NDBS_BUDGET_CONTROL.sql:579-581",
       snippet: `DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
 DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;`,
     },

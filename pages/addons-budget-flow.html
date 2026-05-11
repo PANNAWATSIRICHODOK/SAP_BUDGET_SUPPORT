@@ -5,539 +5,182 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Interactive two-layer budget control presentation for SAP Business One"
+      content="Budget Add-on review notes"
     />
-    <title>Flow ของ Addons Budget</title>
+    <title>Budget Add-on Review Notes</title>
     <link rel="stylesheet" href="../assets/css/addons-budget-flow.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <div class="ambient ambient-a"></div>
-      <div class="ambient ambient-b"></div>
+    <header class="topbar">
+      <a class="brand" href="../index.html">
+        <span>UAT_JBF2</span>
+        <strong>Budget Add-on Review Notes</strong>
+      </a>
+    </header>
 
-      <header class="frame">
-        <div class="frame-brand">
-          <span class="frame-kicker">Budget Flow</span>
-          <strong>SAP Business One Presentation</strong>
-        </div>
-        <div class="frame-actions">
-          <div class="frame-switch" aria-label="Version switch">
-            <a class="is-active" href="./addons-budget-flow.html" aria-current="page" title="flow ของ addons budget">flow ของ addons budget</a>
-            <a href="./problem-report.html" title="รายงานปัญหา">รายงานปัญหา</a>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">ข้อเสนอให้ Vendor ตรวจสอบ</p>
+        <h1>ข้อสังเกต Budget Add-on ก่อน port ไป SBO_*</h1>
+        <p class="lead">
+          เอกสารนี้เป็นข้อสังเกตจาก code/export ที่ได้รับ ไม่ใช่คำสั่งแก้.
+          Vendor ต้องตรวจสอบ logic จริงและทดสอบก่อนปรับ code.
+        </p>
+        <p class="notice">
+          ใช้เทียบกับคู่มือ: <code>Reserved = PR + PO</code>,
+          <code>Actual = AP + CN + JE + OUTGOING + GI + GR</code>.
+        </p>
+      </section>
+
+      <section class="issue-stack" aria-label="ข้อเสนอให้ตรวจสอบ">
+        <article class="issue critical">
+          <div class="issue-meta">P0</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ CALL list กับ dispatch</h2>
+            <p><strong>ข้อสังเกต:</strong> TransactionNotification ส่ง <code>22,18,19,30,24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> รับเฉพาะ <code>22,20,18,21,19,30</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> <code>20/21</code> อาจไม่ถูกเรียก แม้มี procedure. <code>24/46/59/60</code> อาจเข้า control แล้วไม่มี branch รับ ทำให้ movement บางรายการไม่เกิด.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน list ทั้งสองฝั่ง. หาก logic ควรผ่าน control ให้เพิ่ม <code>20,21,1470000113</code> ใน TransactionNotification และเพิ่ม route สำหรับ <code>24/46/59/60</code> ใน <code>NDBS_BUDGET_CONTROL</code>. หากจัดการที่ layer อื่นอยู่แล้ว ขอ test evidence ประกอบ.</p>
+            <div class="code-grid">
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>SBO_SP_TRANSACTIONNOTIFICATION</code> บรรทัด 565-568</p>
+                <pre><code>IF :object_type In ('22','18','19','30','24','46','59','60') then
+  call NDBS_BUDGET_CONTROL (...);
+end if;</code></pre>
+              </div>
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 562-576</p>
+                <pre><code>--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (...);
+if ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (...);
+elseif ( :object_type = '20') then
+  Call NDBS_BUDGET_GRPO (...);
+elseif ( :object_type = '18') then
+  Call NDBS_BUDGET_AP (...);
+elseif ( :object_type = '21') then
+  Call NDBS_BUDGET_RETURN (...);
+elseif ( :object_type = '19') then
+  Call NDBS_BUDGET_APCN (...);
+elseif ( :object_type = '30') then
+  Call NDBS_BUDGET_JE (...);
+end if;</code></pre>
+              </div>
+            </div>
+            <p><strong>Test ยืนยัน:</strong> สร้าง PR, PO, GRPO, Goods Return, AP, APCN, JE, OUTGOING, GI, GR แล้วตรวจ <code>NDBS_BGC_OBDE/OBPE</code> ว่า movement เกิดครบ.</p>
           </div>
-        </div>
-      </header>
+        </article>
 
-      <main class="slides" id="slides">
-        <section class="slide" id="overview" data-label="Overview">
-          <div class="slide-content">
-            <p class="eyebrow">Overview</p>
-            <h1 class="overview-title">ระบบนี้ควบคุมงบของ Draft, PR, PO, A/P Invoice, A/P Credit Memo และ JE</h1>
-            <p class="lead">
-              ระบบนี้แบ่งเป็น 2 ด่าน คือ
-              <strong>ด่านตรวจข้อมูลต้นทาง</strong> ที่เช็กว่าข้อมูลพร้อมหรือยัง และ
-              <strong>ด่านคุมงบขั้นสุดท้าย</strong> ที่เริ่มจองงบ ตัดงบ และอัปเดตงบคงเหลือจริงก่อนบันทึก
-            </p>
-
-            <div class="stat-strip">
-              <article class="stat-card">
-                <span class="stat-value">6</span>
-                <span class="stat-label">เอกสารใน main flow</span>
-              </article>
-              <article class="stat-card">
-                <span class="stat-value">2</span>
-                <span class="stat-label">control layers</span>
-              </article>
-              <article class="stat-card">
-                <span class="stat-value">2</span>
-                <span class="stat-label">budget ledgers</span>
-              </article>
+        <article class="issue critical">
+          <div class="issue-meta">P0</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ PR reserve</h2>
+            <p><strong>ข้อสังเกต:</strong> คู่มือให้ PR เป็น Reserved แต่ call <code>NDBS_BUDGET_PR</code> ถูก comment และ TransactionNotification ไม่ส่ง <code>1470000113</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> ยอด available อาจสูงเกินจริง และอาจจองงบเกินก่อนถึง PO.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันว่า PR reserve ทำที่ layer ใด. หากต้องทำใน Budget Control ให้เพิ่ม <code>1470000113</code> ใน CALL list และเปิด dispatch ไป <code>NDBS_BUDGET_PR</code>.</p>
+            <div class="code-evidence">
+              <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 562-565</p>
+              <pre><code>--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (...);
+if ( :object_type = '22') then
+  Call NDBS_BUDGET_PO (...);</code></pre>
             </div>
-
-            <div class="overview-grid">
-              <article class="panel">
-                <h2>ถ้าไม่ผ่าน</h2>
-                <p>เอกสารถูก block ได้ทั้งตอนด่านตรวจข้อมูลต้นทาง และตอนด่านคุมงบขั้นสุดท้าย</p>
-              </article>
-              <article class="panel">
-                <h2>ถ้าผ่าน</h2>
-                <p>ระบบจะเขียน movement ลง ledger และ recalculation งบคงเหลือให้เอกสารนั้นทันที</p>
-              </article>
-            </div>
-
-            <article class="overview-tabs panel">
-              <div class="overview-tab-list" role="tablist" aria-label="Overview audience views">
-                <button
-                  class="overview-tab is-active"
-                  id="overview-tab-business"
-                  type="button"
-                  role="tab"
-                  aria-selected="true"
-                  aria-controls="overview-panel-business"
-                  data-panel="business"
-                >
-                  Business
-                </button>
-                <button
-                  class="overview-tab"
-                  id="overview-tab-developer"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                  aria-controls="overview-panel-developer"
-                  data-panel="developer"
-                >
-                  Developer
-                </button>
-              </div>
-
-              <section
-                class="overview-tab-panel is-active"
-                id="overview-panel-business"
-                role="tabpanel"
-                aria-labelledby="overview-tab-business"
-              >
-                <article class="summary-band overview-summary-band">
-                  <strong>สถาปัตยกรรม 2 ชั้น</strong>
-                  <div class="card-grid">
-                    <article class="card">
-                      <h2>ชั้นที่ 1: ด่านตรวจข้อมูลต้นทาง</h2>
-                      <p>เช็กว่าข้อมูลพร้อมหรือยัง เช่น ฝ่าย ปีงบ และมี budget setup รองรับหรือไม่</p>
-                    </article>
-                    <article class="card">
-                      <h2>ชั้นที่ 2: ด่านคุมงบขั้นสุดท้าย</h2>
-                      <p>เริ่มจองงบ ตัดงบ กลับรายการ และอัปเดตงบคงเหลือใน ledger จริง</p>
-                    </article>
-                    <article class="card">
-                      <h2>ผลลัพธ์</h2>
-                      <p>เอกสารจะบันทึกได้ก็ต่อเมื่อผ่านทั้งการตรวจข้อมูลต้นทางและการคุมงบขั้นสุดท้าย</p>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="summary-band overview-summary-band">
-                  <strong>ระบบจะเช็ก 3 เรื่องหลัก</strong>
-                  <div class="card-grid">
-                    <article class="card">
-                      <h2>ฝ่าย / เจ้าของงบ</h2>
-                      <p>เอกสารต้องชี้ให้ชัดว่ารายการนี้เป็นความรับผิดชอบของหน่วยงานไหน</p>
-                    </article>
-                    <article class="card">
-                      <h2>ปีงบ</h2>
-                      <p>เอกสารต้องอยู่ในปีงบที่กำหนด ไม่ใช่ข้ามหรือหลุดจากกรอบที่ต้องคุม</p>
-                    </article>
-                    <article class="card">
-                      <h2>มีงบและมียอดคงเหลือ</h2>
-                      <p>ชั้นแรกเช็กว่ามีงบรองรับ ส่วนชั้นสุดท้ายจะไปแตะยอดคงเหลือจริงของงบ</p>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="summary-band overview-summary-band">
-                  <strong>เอกสารที่ถูกคุมในภาพรวม</strong>
-                  <div class="chip-row">
-                    <span>Draft</span>
-                    <span>PR</span>
-                    <span>PO</span>
-                    <span>AP Invoice</span>
-                    <span>AP Credit Memo</span>
-                    <span>JE</span>
-                  </div>
-                  <p class="summary-note">
-                    ในด่านคุมงบขั้นสุดท้าย ยังมี logic เพิ่มสำหรับ <code>GRPO</code> และ <code>Goods Return</code>
-                    แม้ไม่ได้อยู่ใน main flow presentation นี้
-                  </p>
-                </article>
-
-                <article class="summary-band overview-summary-band">
-                  <strong>เอกสารแต่ละตัวไปทำอะไรกับงบหลังบ้าน</strong>
-                  <p class="summary-note">
-                    ส่วนนี้อธิบายเฉพาะเอกสารที่เริ่มขยับงบจริงในด่านคุมงบขั้นสุดท้าย ส่วน
-                    <code>Draft</code> และ <code>PR</code> ยังอยู่ฝั่งตรวจข้อมูลต้นทางเป็นหลัก
-                  </p>
-
-                  <div class="backend-role-grid">
-                    <article class="backend-role-card">
-                      <h2>PO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> จองงบไว้ก่อนซื้อจริง</p>
-                      <p>เมื่อบันทึกเอกสาร ระบบจะกันวงเงินไว้ให้หน่วยงานหรือโครงการนั้นทันที เพื่อไม่ให้ยอดถูกใช้ซ้ำ</p>
-                      <p>ถ้าเป็นรายการของโครงการและวงเงินไม่พอ เอกสารจะยังไม่ผ่านจนกว่าจะมีงบเพียงพอ</p>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>GRPO</h2>
-                      <p><strong>หน้าที่หลัก:</strong> เปลี่ยนงบที่กันไว้ให้กลายเป็นการใช้จริง</p>
-                      <p>เมื่อรับของจริง ระบบจะย้ายยอดจากส่วนที่กันไว้ ไปเป็นยอดที่ถือว่าเริ่มใช้จริงตามสินค้าที่รับ</p>
-                      <p>จุดนี้ทำให้งบย้ายจาก “กันไว้” ไปเป็น “ใช้จริง”</p>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>A/P Invoice</h2>
-                      <p><strong>หน้าที่หลัก:</strong> รับรู้ค่าใช้จ่ายจริง</p>
-                      <p>ถ้าอ้างจาก PO หรือ GRPO ระบบจะเปลี่ยนยอดที่กันไว้ให้กลายเป็นค่าใช้จ่ายจริงตามยอดเจ้าหนี้ที่บันทึก</p>
-                      <p>ถ้าเอกสารถูกยกเลิก ระบบจะคืนผลกระทบทางงบและคำนวณยอดคงเหลือใหม่ให้อัตโนมัติ</p>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>Goods Return</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ปรับยอดใช้จริงเมื่อมีการคืนของ</p>
-                      <p>เมื่อมีการคืนของ ระบบจะปรับยอดใช้จริงให้สอดคล้องกับปริมาณและมูลค่าที่คืนกลับ</p>
-                      <p>จุดนี้ช่วยให้ยอดใช้งบสะท้อนสถานะของการรับคืนสินค้า</p>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>A/P Credit Memo</h2>
-                      <p><strong>หน้าที่หลัก:</strong> คืนงบจากรายการที่เคยรับรู้ไปแล้ว</p>
-                      <p>ถ้ามีเอกสารอ้างอิง ระบบจะย้อนผลจากรายการเดิม แต่ถ้าไม่มี ระบบจะคืนผลกระทบของงบจากรายการนั้นโดยตรง</p>
-                      <p>จุดนี้ทำหน้าที่คืนงบหรือหักกลับจากรายการที่รับรู้ไปแล้ว</p>
-                    </article>
-
-                    <article class="backend-role-card">
-                      <h2>JE</h2>
-                      <p><strong>หน้าที่หลัก:</strong> ตัดงบตรงจากบัญชี</p>
-                      <p>JE ไม่ได้เริ่มจากการกันวงเงินก่อน แต่จะกระทบงบจริงทันทีหลังผ่านการตรวจข้อมูลต้นทาง</p>
-                      <p>เหมาะกับรายการที่เข้าทางบัญชีโดยตรงและต้องสะท้อนผลในงบเลย</p>
-                    </article>
-                  </div>
-                </article>
-              </section>
-
-              <section
-                class="overview-tab-panel"
-                id="overview-panel-developer"
-                role="tabpanel"
-                aria-labelledby="overview-tab-developer"
-                hidden
-              >
-                <article class="developer-banner">
-                  <span class="developer-badge">ต้องรีบแก้</span>
-                  <p>6 จุดนี้มีความเสี่ยงทำให้ flow งบผิด, หลุดด่านคุมงบขั้นสุดท้าย, หรือคุม over budget ไม่ตรงที่ตั้งใจ</p>
-                </article>
-
-                <div class="developer-grid">
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-urgent">Urgent</span>
-                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:23-26</span>
-                    </div>
-                    <h2>JE route ใน wrapper เข้าไม่ถึงตามลำดับเงื่อนไขปัจจุบัน</h2>
-                    <p><strong>ปัญหา:</strong> มี <code>elseif ( :object_type = '19')</code> ซ้ำสองครั้งทั้ง APCN และ JE</p>
-                    <p><strong>ผลกระทบ:</strong> JE branch มีโอกาสไม่ถูก route เข้า <code>NDBS_BUDGET_JE</code> ตามที่ตั้งใจ</p>
-                    <p><strong>ควรแก้:</strong> ยืนยัน object type ของ JE แล้วแก้ branch หลังให้เป็นค่าที่ถูกต้อง โดยคาดว่าควรเป็น <code>'30'</code></p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">NDBS_BUDGET_CONTROL.sql:31-33</span>
-                    </div>
-                    <h2>Wrapper ยังเรียก full refresh ทุกครั้งที่ route สำเร็จ</h2>
-                    <p><strong>ปัญหา:</strong> ตอนจบยังมี <code>call NDBS_UpdateAllBudgetAmount</code> ทุกครั้งที่ <code>error = 0</code></p>
-                    <p><strong>ผลกระทบ:</strong> แม้ helper ใหม่จะเร็วขึ้น แต่ flow ยังผูกอยู่กับ global refresh แทน targeted refresh</p>
-                    <p><strong>ควรแก้:</strong> ลด scope ของ recalc หรือเปลี่ยนให้เรียกเฉพาะกรณีที่จำเป็นจริง</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">NDBS_BUDGET_AP.sql:604</span>
-                    </div>
-                    <h2>AP บาง path join budget mapping ผิด key</h2>
-                    <p><strong>ปัญหา:</strong> ใช้ <code>T5."U_FormatCode" = T4."AcctCode"</code> ทั้งที่จุดใกล้เคียงใช้ <code>FormatCode</code></p>
-                    <p><strong>ผลกระทบ:</strong> budget group อาจถูก map ผิดใน path ที่อ้าง PO เดิม</p>
-                    <p><strong>ควรแก้:</strong> ยืนยัน key กลางของ mapping table แล้วใช้ pattern เดียวกันทุก branch</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">NDBS_BUDGET_APCN.sql:126-146</span>
-                    </div>
-                    <h2>APCN cancel path ใช้เงื่อนไขที่จริงเสมอ</h2>
-                    <p><strong>ปัญหา:</strong> มี <code>IF BCount &gt;= 0</code> อยู่ 2 จุด</p>
-                    <p><strong>ผลกระทบ:</strong> block หลังยกเลิกเอกสารทำงานต่อแม้ไม่มี row ให้ใช้อ้างอิงจริง</p>
-                    <p><strong>ควรแก้:</strong> เปลี่ยนเป็น <code>&gt; 0</code> และ retest cancel ทั้งฝั่ง department และ project</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-high">High</span>
-                      <span class="developer-ref">NDBS_BUDGETNOTIFICATION.sql:385, 505, 821, 941</span>
-                    </div>
-                    <h2>Notification layer ใช้ account mapping ไม่สม่ำเสมอ</h2>
-                    <p><strong>ปัญหา:</strong> บาง branch join ด้วย <code>AcctCode</code> แต่บาง branch เปลี่ยนไปใช้ <code>FormatCode</code></p>
-                    <p><strong>ผลกระทบ:</strong> document คนละ path อาจไปเจอ budget group คนละตัว ทั้งที่ business intent เดียวกัน</p>
-                    <p><strong>ควรแก้:</strong> เลือก mapping rule กลางเพียงแบบเดียว แล้วใช้ซ้ำทั้งไฟล์</p>
-                  </article>
-
-                  <article class="developer-card">
-                    <div class="developer-card-head">
-                      <span class="developer-priority is-medium">Medium</span>
-                      <span class="developer-ref">NDBS_BUDGETNOTIFICATION.sql:222, 244, 652, 674</span>
-                    </div>
-                    <h2>Notification layer ยังมี budget engine ของตัวเอง</h2>
-                    <p><strong>ปัญหา:</strong> ไฟล์นี้ยัง update <code>@NDBS_BGC_BDPL</code> และ <code>@NDBS_BGC_BPJL</code> โดยตรงหลายจุด</p>
-                    <p><strong>ผลกระทบ:</strong> เสี่ยง drift จาก procedure หลัก เพราะมีสองแหล่งคำนวณยอดงบพร้อมกัน</p>
-                    <p><strong>ควรแก้:</strong> รวม logic ไว้ที่ helper กลาง หรือเลิกใช้ notification engine ที่ซ้ำซ้อน</p>
-                  </article>
-                </div>
-              </section>
-            </article>
-
-            <p class="slide-hint">เลื่อนลงเพื่อดูว่าแต่ละเอกสารถูกคุมอย่างไรตั้งแต่ด่านต้นทางไปจนถึงด่านคุมงบขั้นสุดท้าย</p>
+            <p><strong>Test ยืนยัน:</strong> สร้าง PR non-inventory ที่มี budget year และ department/project แล้วตรวจว่า Reserved เพิ่มทันที. จากนั้นทำ PO จาก PR แล้วตรวจว่าไม่ reserve ซ้ำ.</p>
           </div>
-        </section>
+        </article>
 
-        <section class="slide" id="workflow" data-label="Workflow">
-          <div class="slide-content">
-            <p class="eyebrow">Workflow</p>
-            <h1>Flow ที่เห็นทั้งความเชื่อมโยงและเหตุผลที่ถูก block</h1>
-
-            <article class="workflow-intro-panel panel">
-              <p>
-                คลิกแต่ละเอกสารเพื่อดูว่าเชื่อมกับขั้นก่อนหน้าและขั้นถัดไปอย่างไร
-                เอกสารถูกตรวจอะไรบ้างก่อนบันทึก และเมื่อผ่านแล้วงบจะเริ่มถูกขยับจริงอย่างไร
-              </p>
-            </article>
-
-            <div class="flow-toolbar">
-              <div class="flow-stage-status">
-                <span class="flow-stage-position" id="flow-stage-position">1 / 6</span>
-                <strong id="flow-stage-caption">Draft Gate</strong>
+        <article class="issue high">
+          <div class="issue-meta">P1</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ route ของ OUTGOING / GI / GR</h2>
+            <p><strong>ข้อสังเกต:</strong> <code>24/46/59/60</code> อยู่ใน CALL list และ <code>NDBS_BUDGET_JE</code> อ่าน <code>TransType</code> เหล่านี้ แต่ control call <code>NDBS_BUDGET_JE</code> เฉพาะ <code>object_type = '30'</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> Actual ของ OUTGOING/GI/GR อาจไม่เข้า budget ledger.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน engine ที่ใช้กับ object เหล่านี้. หากใช้ <code>NDBS_BUDGET_JE</code> ให้พิจารณาเพิ่ม branch <code>object_type IN ('24','46','59','60')</code>. หากไม่ใช่ ให้ยืนยัน procedure/dispatch ที่ถูกต้อง.</p>
+            <div class="code-grid">
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>NDBS_BUDGET_JE</code> บรรทัด 66-71</p>
+                <pre><code>Where (T0."Debit"-T0."Credit") &lt;&gt; 0
+  AND T0."TransType" IN( '30','46','24','59','60')
+  AND T0."TransId" = :datakey;</code></pre>
               </div>
-              <div class="flow-nav">
-                <button class="flow-nav-button" id="flow-prev" type="button" aria-label="Previous stage">
-                  ก่อนหน้า
-                </button>
-                <button class="flow-nav-button" id="flow-next" type="button" aria-label="Next stage">
-                  ถัดไป
-                </button>
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 574-576</p>
+                <pre><code>elseif ( :object_type = '30') then
+  Call NDBS_BUDGET_JE (...);
+end if;</code></pre>
               </div>
             </div>
-
-            <div class="flow-map" id="flow-map">
-              <button class="flow-chip is-active" type="button" data-stage="draft">
-                <span class="flow-chip-index">1</span>
-                <span class="flow-chip-label">Draft</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="pr">
-                <span class="flow-chip-index">2</span>
-                <span class="flow-chip-label">PR</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="po">
-                <span class="flow-chip-index">3</span>
-                <span class="flow-chip-label">PO</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="ap">
-                <span class="flow-chip-index">4</span>
-                <span class="flow-chip-label">AP / APCN</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="je">
-                <span class="flow-chip-index">5</span>
-                <span class="flow-chip-label">JE</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip flow-chip-final" type="button" data-stage="final">
-                <span class="flow-chip-index">6</span>
-                <span class="flow-chip-label">Final</span>
-              </button>
-            </div>
-
-            <article class="flow-detail panel" id="flow-detail">
-              <div class="flow-detail-head">
-                <p class="eyebrow" id="flow-detail-kicker">Stage 1</p>
-                <h2 id="flow-detail-title">Draft</h2>
-                <p id="flow-detail-summary">
-                  เอกสารร่างถูกคุมก่อนเกิดเอกสารจริง เพื่อกันข้อมูล budget ที่ยังไม่พร้อม
-                </p>
-                <div class="flow-tag-row" id="flow-detail-tags"></div>
-              </div>
-
-              <div class="flow-meta-grid">
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">เชื่อมจาก</span>
-                  <strong id="flow-detail-from">เริ่มต้นของรายการ</strong>
-                </article>
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">เชื่อมไป</span>
-                  <strong id="flow-detail-to">PR / PO / เอกสารจริง</strong>
-                </article>
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">ถ้าโดน block</span>
-                  <strong id="flow-detail-impact">ยังไม่พร้อมไปขั้นถัดไป</strong>
-                </article>
-              </div>
-
-              <div class="flow-detail-body">
-                <div class="flow-blocks-panel">
-                  <div class="flow-panel-head">
-                    <span class="flow-meta-label">Store Rules</span>
-                    <p id="flow-rule-caption">4 จุดที่ store ใช้ block draft</p>
-                  </div>
-                  <div class="flow-rule-stack" id="flow-detail-rules"></div>
-                </div>
-                <div class="flow-side-stack">
-                  <article class="flow-side-card">
-                    <span class="flow-meta-label">ถ้าผ่าน</span>
-                    <p id="flow-detail-pass">
-                      ผ่านแล้ว draft พร้อมใช้เป็นฐานของเอกสารถัดไป แต่ระบบไม่ได้สร้างเอกสารถัดไปให้อัตโนมัติ
-                    </p>
-                  </article>
-                  <article class="flow-side-card">
-                    <span class="flow-meta-label">หมายเหตุ Flow</span>
-                    <p id="flow-detail-note">store นี้ทำหน้าที่อนุญาตหรือไม่อนุญาตให้บันทึกเอกสารในขั้นนั้น</p>
-                  </article>
-                  <div class="flow-code-panel">
-                    <span class="flow-meta-label">Code refs / SQL</span>
-                    <p class="flow-code-hint">กดเพื่อดูทั้งโค้ดด่านต้นทางและด่านคุมงบขั้นสุดท้ายของช่วงนั้น</p>
-                    <div class="code-dropdown-list" id="flow-detail-codes"></div>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            <p class="workflow-note">
-              มุมมองนี้ทำให้เห็นพร้อมกัน 4 อย่าง: เชื่อมจากไหน, ไปต่อไหน, ถูก block ตรงไหน, และงบถูกขยับเมื่อไร
-            </p>
+            <p><strong>Test ยืนยัน:</strong> Post OUTGOING, GI, GR ที่มี budget-controlled account แล้วตรวจ Actual movement และยอดคงเหลือ.</p>
           </div>
-        </section>
+        </article>
 
-        <section class="slide" id="ndbs-workflow" data-label="NDBS Workflow">
-          <div class="slide-content">
-            <p class="eyebrow">Final Budget Flow</p>
-            <h1>Workflow ภายในด่านคุมงบขั้นสุดท้ายที่เริ่มขยับงบจริง</h1>
-
-            <article class="workflow-intro-panel panel">
-              <p>
-                ส่วนนี้แยกให้เห็นเฉพาะ flow ภายในด่านคุมงบขั้นสุดท้าย ว่าหลังผ่านด่านตรวจข้อมูลต้นทางแล้ว
-                ระบบจะรับ transaction ไป route, จองงบ, ตัดงบ, reverse งบ และ cleanup อย่างไร
-              </p>
-            </article>
-
-            <div class="flow-toolbar">
-              <div class="flow-stage-status">
-                <span class="flow-stage-position" id="ndbs-flow-stage-position">1 / 6</span>
-                <strong id="ndbs-flow-stage-caption">Entry Log</strong>
-              </div>
-              <div class="flow-nav">
-                <button class="flow-nav-button" id="ndbs-flow-prev" type="button" aria-label="Previous NDBS stage">
-                  ก่อนหน้า
-                </button>
-                <button class="flow-nav-button" id="ndbs-flow-next" type="button" aria-label="Next NDBS stage">
-                  ถัดไป
-                </button>
-              </div>
+        <article class="issue high">
+          <div class="issue-meta">P1</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ APCN cancel condition</h2>
+            <p><strong>ข้อสังเกต:</strong> <code>IF BCount &gt;= 0</code> เป็นจริงเสมอ ทั้ง department และ project.</p>
+            <p><strong>ความเสี่ยง:</strong> ระบบอาจ reverse จาก row ที่ไม่มีจริง เสี่ยง null, reverse ผิดงบ, หรือสร้าง movement ผิดตอน cancel A/P Credit Memo.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันเงื่อนไขนี้. หากต้องมี row ก่อน reverse ให้พิจารณาเปลี่ยนเป็น <code>IF BCount &gt; 0 then</code> และกำหนด else path เมื่อไม่มี movement.</p>
+            <div class="code-evidence">
+              <p class="file-label">Procedure: <code>NDBS_BUDGET_APCN</code> บรรทัด 123-133 และ 143-151</p>
+              <pre><code>Select Count(*) into BCount
+From "NDBS_BGC_OBDE"
+Where "PrimaryObjectType" = :BaseType
+  AND "PrimaryObjectID" = :BaseKey
+  AND "PrimaryObjectLine" = :BaseLine;
+IF BCount &gt;= 0 then
+  Select TOP 1 "BudgetYear","BudgetGroup","Department"
+  into OldYear,OldGroup,OldDept
+  From "NDBS_BGC_OBDE";
+end if;</code></pre>
             </div>
-
-            <div class="flow-map" id="ndbs-flow-map">
-              <button class="flow-chip is-active" type="button" data-stage="entry">
-                <span class="flow-chip-index">1</span>
-                <span class="flow-chip-label">Entry</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="route">
-                <span class="flow-chip-index">2</span>
-                <span class="flow-chip-label">Route</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="reserve">
-                <span class="flow-chip-index">3</span>
-                <span class="flow-chip-label">Reserve</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="actual">
-                <span class="flow-chip-index">4</span>
-                <span class="flow-chip-label">Actual</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip" type="button" data-stage="reverse">
-                <span class="flow-chip-index">5</span>
-                <span class="flow-chip-label">Reverse</span>
-              </button>
-              <span class="flow-connector" aria-hidden="true"></span>
-
-              <button class="flow-chip flow-chip-final" type="button" data-stage="finalize">
-                <span class="flow-chip-index">6</span>
-                <span class="flow-chip-label">Finalize</span>
-              </button>
-            </div>
-
-            <article class="flow-detail panel" id="ndbs-flow-detail">
-              <div class="flow-detail-head">
-                <p class="eyebrow" id="ndbs-flow-detail-kicker">Stage 1</p>
-                <h2 id="ndbs-flow-detail-title">Entry</h2>
-                <p id="ndbs-flow-detail-summary">
-                  transaction ที่ผ่านด่านตรวจข้อมูลต้นทางแล้วจะถูกส่งเข้ามาในด่านคุมงบขั้นสุดท้าย และเริ่ม trace ก่อน route ต่อ
-                </p>
-                <div class="flow-tag-row" id="ndbs-flow-detail-tags"></div>
-              </div>
-
-              <div class="flow-meta-grid">
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">เชื่อมจาก</span>
-                  <strong id="ndbs-flow-detail-from">ด่านตรวจข้อมูลต้นทาง</strong>
-                </article>
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">เชื่อมไป</span>
-                  <strong id="ndbs-flow-detail-to">route ตาม object type</strong>
-                </article>
-                <article class="flow-meta-card">
-                  <span class="flow-meta-label">ถ้าโดน block</span>
-                  <strong id="ndbs-flow-detail-impact">transaction ยังไม่ commit</strong>
-                </article>
-              </div>
-
-              <div class="flow-detail-body">
-                <div class="flow-blocks-panel">
-                  <div class="flow-panel-head">
-                    <span class="flow-meta-label">Procedure Rules</span>
-                    <p id="ndbs-flow-rule-caption">ขั้นแรกของด่านคุมงบขั้นสุดท้าย</p>
-                  </div>
-                  <div class="flow-rule-stack" id="ndbs-flow-detail-rules"></div>
-                </div>
-                <div class="flow-side-stack">
-                  <article class="flow-side-card">
-                    <span class="flow-meta-label">ถ้าผ่าน</span>
-                    <p id="ndbs-flow-detail-pass">
-                      procedure จะเข้าสู่ branch ของเอกสารนั้นและเริ่มเขียน movement งบตามสถานะจริง
-                    </p>
-                  </article>
-                  <article class="flow-side-card">
-                    <span class="flow-meta-label">หมายเหตุ Flow</span>
-                    <p id="ndbs-flow-detail-note">
-                      สไลด์นี้เป็น flow ภายใน procedure ไม่ใช่ flow เอกสารของผู้ใช้
-                    </p>
-                  </article>
-                  <div class="flow-code-panel">
-                    <span class="flow-meta-label">Code refs / SQL</span>
-                    <p class="flow-code-hint">กดเพื่อดูโค้ดของด่านคุมงบขั้นสุดท้ายในแต่ละช่วง</p>
-                    <div class="code-dropdown-list" id="ndbs-flow-detail-codes"></div>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            <p class="workflow-note">
-              มุมมองนี้โฟกัสเฉพาะ procedure ชั้นสุดท้าย ว่า reserve, actual, reverse และ cleanup เกิดตรงไหนในโค้ด
-            </p>
+            <p><strong>Test ยืนยัน:</strong> Cancel APCN ทั้งแบบมี base document และไม่มี base document แยก department/project แล้วตรวจว่า reversal ไม่ผิดแถว.</p>
           </div>
-        </section>
-      </main>
-    </div>
+        </article>
 
-    <script src="../assets/js/addons-budget-flow.js"></script>
+        <article class="issue high">
+          <div class="issue-meta">P1</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ AP account mapping</h2>
+            <p><strong>ข้อสังเกต:</strong> branch ใกล้กันใช้ <code>U_FormatCode = FormatCode</code> แต่จุดหนึ่งใช้ <code>U_FormatCode = AcctCode</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> A/P Invoice อาจลง budget group ผิด หรือหา group ไม่เจอ.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน mapping key กลาง. หาก branch นี้ใช้ <code>U_FormatCode</code> ให้พิจารณาเปลี่ยน <code>T4."AcctCode"</code> เป็น <code>T4."FormatCode"</code>. หากใช้ account code ให้ใช้ pattern <code>U_AccountCode = AcctCode</code> ทั้งไฟล์.</p>
+            <div class="code-grid">
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>NDBS_BUDGET_AP</code> บรรทัด 199-200</p>
+                <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
+Inner Join "@NDBS_BGC_BGPL" T5
+  ON T5."U_FormatCode" = T4."FormatCode"</code></pre>
+              </div>
+              <div class="code-evidence">
+                <p class="file-label">Procedure: <code>NDBS_BUDGET_AP</code> บรรทัด 602-603 จุดที่ควรตรวจสอบ</p>
+                <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
+Inner Join "@NDBS_BGC_BGPL" T5
+  ON T5."U_FormatCode" = T4."AcctCode"</code></pre>
+              </div>
+            </div>
+            <p><strong>Test ยืนยัน:</strong> ทำ A/P Invoice จาก PO ที่ <code>AcctCode</code> และ <code>FormatCode</code> ต่างกัน แล้วตรวจว่า budget group ใน ledger ตรงกับ setup.</p>
+          </div>
+        </article>
+
+        <article class="issue medium">
+          <div class="issue-meta">P2</div>
+          <div class="issue-body">
+            <h2>ควรประเมิน Full refresh หลัง transaction</h2>
+            <p><strong>ข้อสังเกต:</strong> เมื่อ <code>error = 0</code> ระบบลบ zero movement แล้วเรียก <code>NDBS_UpdateAllBudgetAmount</code> ทุกครั้ง.</p>
+            <p><strong>ความเสี่ยง:</strong> transaction เล็กก็ recalc ทั้งระบบ อาจช้าและ lock เมื่อข้อมูลเยอะหรือมีหลาย user.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ประเมิน performance จริง. หากกระทบการใช้งาน ให้พิจารณา targeted recalculation เฉพาะ budget key ที่เอกสารกระทบ หรือใช้ background job ที่จำกัด scope ได้.</p>
+            <div class="code-evidence">
+              <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 579-583</p>
+              <pre><code>if (error = 0) then
+  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+  call NDBS_UpdateAllBudgetAmount;
+end if;</code></pre>
+            </div>
+            <p><strong>Test ยืนยัน:</strong> Post PO/AP/JE พร้อมกันหลาย user แล้วตรวจเวลา, lock, และยอดงบของ key ที่กระทบ.</p>
+          </div>
+        </article>
+      </section>
+    </main>
   </body>
 </html>
