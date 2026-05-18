@@ -89,6 +89,37 @@ if ( :object_type = '22') then
         </article>
 
         <article class="issue high">
+          <div class="issue-meta">P0</div>
+          <div class="issue-body">
+            <h2>AP CopyTo เจอ no data found จาก datakey</h2>
+            <p><strong>ข้อสังเกต:</strong> UAT test แบบ PO CopyTo AP error ที่ <code>NDBS_BUDGET_AP</code> line 148 เพราะ procedure เอา <code>:datakey</code> ไปหา <code>OPCH."DocEntry"</code> แล้วไม่เจอ record.</p>
+            <p><strong>ความเสี่ยง:</strong> SAP frontend จะ post A/P Invoice ไม่ผ่านทันที แม้ข้อมูลหน้าเอกสารถูกต้อง เพราะ backend budget procedure throw error กลับมา.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันค่า key ที่ส่งเข้า budget flow. สำหรับ AP ควรใช้ DocEntry จาก <code>list_of_cols_val_tab_del</code> หรือทำให้ <code>datakey</code> เป็นค่าเดียวกันจริงก่อนเรียก <code>NDBS_BUDGET_AP</code>.</p>
+            <div class="code-grid">
+              <div class="code-evidence">
+                <p class="file-label">File: SBO_SP_TRANSACTIONNOTIFICATION</p>
+                <pre><code>call NDBS_BUDGET_CONTROL (
+  :object_type,
+  :transaction_type,
+  :datakey,
+  :list_of_key_cols_tab_del,
+  :list_of_cols_val_tab_del,
+  :error,
+  :error_message
+);</code></pre>
+              </div>
+              <div class="code-evidence">
+                <p class="file-label">File: NDBS_BUDGET_AP</p>
+                <pre><code>Select "CANCELED" into IsCancelled
+From OPCH
+Where "DocEntry" = :datakey;</code></pre>
+              </div>
+            </div>
+            <p><strong>Test ยืนยัน:</strong> ทำ PO CopyTo AP แล้วตรวจค่า <code>datakey</code> กับ <code>list_of_cols_val_tab_del</code> ใน TransactionNotification ว่าตรงกับ <code>OPCH.DocEntry</code> หรือไม่.</p>
+          </div>
+        </article>
+
+        <article class="issue high">
           <div class="issue-meta">P1</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ route ของ OUTGOING / GI / GR</h2>
