@@ -42,13 +42,13 @@
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน list ทั้งสองฝั่ง. หาก logic ควรผ่าน control ให้เพิ่ม <code>20,21,1470000113</code> ใน TransactionNotification และเพิ่ม route สำหรับ <code>24/46/59/60</code> ใน <code>NDBS_BUDGET_CONTROL</code>. หากจัดการที่ layer อื่นอยู่แล้ว ขอ test evidence ประกอบ.</p>
             <div class="code-grid">
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>SBO_SP_TRANSACTIONNOTIFICATION</code> บรรทัด 565-568</p>
+                <p class="file-label">File: SBO_SP_TRANSACTIONNOTIFICATION</p>
                 <pre><code>IF :object_type In ('22','18','19','30','24','46','59','60') then
   call NDBS_BUDGET_CONTROL (...);
 end if;</code></pre>
               </div>
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 562-576</p>
+                <p class="file-label">File: NDBS_BUDGET_CONTROL</p>
                 <pre><code>--if ( :object_type = '1470000113') then
 --  Call NDBS_BUDGET_PR (...);
 if ( :object_type = '22') then
@@ -74,11 +74,11 @@ end if;</code></pre>
           <div class="issue-meta">P0</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ PR reserve</h2>
-            <p><strong>ข้อสังเกต:</strong> คู่มือให้ PR เป็น Reserved แต่ call <code>NDBS_BUDGET_PR</code> ถูก comment และ TransactionNotification ไม่ส่ง <code>1470000113</code>.</p>
+            <p><strong>ข้อสังเกต:</strong> คู่มือให้ PR เป็น Reserved แต่ call <code>NDBS_BUDGET_PR</code> ถูก comment, TransactionNotification ไม่ส่ง <code>1470000113</code>, และ deploy package ชุดนี้ไม่มีไฟล์ <code>NDBS_BUDGET_PR</code>.</p>
             <p><strong>ความเสี่ยง:</strong> ยอด available อาจสูงเกินจริง และอาจจองงบเกินก่อนถึง PO.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันว่า PR reserve ทำที่ layer ใด. หากต้องทำใน Budget Control ให้เพิ่ม <code>1470000113</code> ใน CALL list และเปิด dispatch ไป <code>NDBS_BUDGET_PR</code>.</p>
             <div class="code-evidence">
-              <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 562-565</p>
+              <p class="file-label">File: NDBS_BUDGET_CONTROL</p>
               <pre><code>--if ( :object_type = '1470000113') then
 --  Call NDBS_BUDGET_PR (...);
 if ( :object_type = '22') then
@@ -97,13 +97,13 @@ if ( :object_type = '22') then
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน engine ที่ใช้กับ object เหล่านี้. หากใช้ <code>NDBS_BUDGET_JE</code> ให้พิจารณาเพิ่ม branch <code>object_type IN ('24','46','59','60')</code>. หากไม่ใช่ ให้ยืนยัน procedure/dispatch ที่ถูกต้อง.</p>
             <div class="code-grid">
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>NDBS_BUDGET_JE</code> บรรทัด 66-71</p>
+                <p class="file-label">File: NDBS_BUDGET_JE</p>
                 <pre><code>Where (T0."Debit"-T0."Credit") &lt;&gt; 0
   AND T0."TransType" IN( '30','46','24','59','60')
   AND T0."TransId" = :datakey;</code></pre>
               </div>
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 574-576</p>
+                <p class="file-label">File: NDBS_BUDGET_CONTROL</p>
                 <pre><code>elseif ( :object_type = '30') then
   Call NDBS_BUDGET_JE (...);
 end if;</code></pre>
@@ -121,7 +121,7 @@ end if;</code></pre>
             <p><strong>ความเสี่ยง:</strong> ระบบอาจ reverse จาก row ที่ไม่มีจริง เสี่ยง null, reverse ผิดงบ, หรือสร้าง movement ผิดตอน cancel A/P Credit Memo.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันเงื่อนไขนี้. หากต้องมี row ก่อน reverse ให้พิจารณาเปลี่ยนเป็น <code>IF BCount &gt; 0 then</code> และกำหนด else path เมื่อไม่มี movement.</p>
             <div class="code-evidence">
-              <p class="file-label">Procedure: <code>NDBS_BUDGET_APCN</code> บรรทัด 123-133 และ 143-151</p>
+              <p class="file-label">File: NDBS_BUDGET_APCN</p>
               <pre><code>Select Count(*) into BCount
 From "NDBS_BGC_OBDE"
 Where "PrimaryObjectType" = :BaseType
@@ -146,13 +146,13 @@ end if;</code></pre>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน mapping key กลาง. หาก branch นี้ใช้ <code>U_FormatCode</code> ให้พิจารณาเปลี่ยน <code>T4."AcctCode"</code> เป็น <code>T4."FormatCode"</code>. หากใช้ account code ให้ใช้ pattern <code>U_AccountCode = AcctCode</code> ทั้งไฟล์.</p>
             <div class="code-grid">
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>NDBS_BUDGET_AP</code> บรรทัด 199-200</p>
+                <p class="file-label">File: NDBS_BUDGET_AP</p>
                 <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
 Inner Join "@NDBS_BGC_BGPL" T5
   ON T5."U_FormatCode" = T4."FormatCode"</code></pre>
               </div>
               <div class="code-evidence">
-                <p class="file-label">Procedure: <code>NDBS_BUDGET_AP</code> บรรทัด 602-603 จุดที่ควรตรวจสอบ</p>
+                <p class="file-label">File: NDBS_BUDGET_AP</p>
                 <pre><code>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
 Inner Join "@NDBS_BGC_BGPL" T5
   ON T5."U_FormatCode" = T4."AcctCode"</code></pre>
@@ -165,12 +165,12 @@ Inner Join "@NDBS_BGC_BGPL" T5
         <article class="issue medium">
           <div class="issue-meta">P2</div>
           <div class="issue-body">
-            <h2>ควรประเมิน Full refresh หลัง transaction</h2>
-            <p><strong>ข้อสังเกต:</strong> เมื่อ <code>error = 0</code> ระบบลบ zero movement แล้วเรียก <code>NDBS_UpdateAllBudgetAmount</code> ทุกครั้ง.</p>
-            <p><strong>ความเสี่ยง:</strong> transaction เล็กก็ recalc ทั้งระบบ อาจช้าและ lock เมื่อข้อมูลเยอะหรือมีหลาย user.</p>
+            <h2>Full refresh หลัง transaction ยังเป็นความเสี่ยงด้าน performance</h2>
+            <p><strong>ข้อสังเกต:</strong> <code>NDBS_UpdateAllBudgetAmount</code> ถูกแก้เป็น set-based แล้ว แต่ยังถูกเรียกแบบ full refresh ทุก transaction.</p>
+            <p><strong>ความเสี่ยง:</strong> ไม่ใช่ bug เดิมแล้ว แต่ยังควรทดสอบกับข้อมูลเยอะและหลาย user เพราะ transaction เล็กก็ยัง recalc ทั้งระบบ.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ประเมิน performance จริง. หากกระทบการใช้งาน ให้พิจารณา targeted recalculation เฉพาะ budget key ที่เอกสารกระทบ หรือใช้ background job ที่จำกัด scope ได้.</p>
             <div class="code-evidence">
-              <p class="file-label">Procedure: <code>NDBS_BUDGET_CONTROL</code> บรรทัด 579-583</p>
+              <p class="file-label">File: NDBS_BUDGET_CONTROL</p>
               <pre><code>if (error = 0) then
   DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
   DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
