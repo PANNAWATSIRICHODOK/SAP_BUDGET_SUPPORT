@@ -32,6 +32,18 @@
         </p>
       </section>
 
+      <section class="issue-stack" aria-label="ผล UAT ล่าสุด">
+        <article class="issue critical">
+          <div class="issue-meta">UAT</div>
+          <div class="issue-body">
+            <h2>ผล UAT ล่าสุด: หยุด flow test ที่ PR / PO / AP</h2>
+            <p><strong>Fail:</strong> Case 1, 3, 7, 8, 9 เพราะ backend budget ยังประมวลผล flow หลักไม่ถูกต้อง. Copy PR ไป PO ได้แต่ยอด Reserve ไม่ถูกต้อง และ Copy PO ไป AP Invoice ไม่ได้จาก error <code>1299 no data found</code> ที่ <code>NDBS_BUDGET_AP</code> line 148.</p>
+            <p><strong>Pending:</strong> Case 4, 5, 6 ควรรอ vendor แก้ PR/PO/AP ก่อน เพราะเป็น flow ถัดไปหรือใช้ยอด Monitor ที่อ้างอิง backend ledger เดียวกัน.</p>
+            <p><strong>Retest:</strong> Case 2 ยังรอทดสอบ Table Update ตอน login. Case 10 ยังแยกทดสอบได้ เพราะเป็น setup function เรื่อง Budget Group / GL ไม่ได้พึ่ง flow PR/PO/AP โดยตรง.</p>
+          </div>
+        </article>
+      </section>
+
       <section class="issue-stack" aria-label="ข้อเสนอให้ตรวจสอบ">
         <article class="issue critical">
           <div class="issue-meta">P0</div>
