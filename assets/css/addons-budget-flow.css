@@ -1,136 +1,97 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=Sarabun:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 :root {
-  --primary: #003a8c;
-  --primary-light: #e6f7ff;
-  --primary-border: #91d5ff;
-  --bg: #f0f2f5;
-  --surface: #ffffff;
-  --text: #000000;
-  --text-secondary: #595959;
-  --border: #d9d9d9;
-  --critical: #f5222d;
-  --critical-bg: #fff1f0;
-  --high: #fa8c16;
-  --high-bg: #fff7e6;
-  --medium: #faad14;
-  --medium-bg: #fffbe6;
-  --success: #52c41a;
-  --success-bg: #f6ffed;
-  --radius: 8px;
-  --font-heading: 'Outfit', 'Sarabun', sans-serif;
-  --font-body: 'Inter', 'Sarabun', sans-serif;
+  /* SAP B1 HANA Color Palette */
+  --sap-blue: #005a9e;          /* Fiori Primary Blue */
+  --sap-midnight: #003366;      /* SAP Corporate Navy */
+  --sap-gold: #f0ab00;          /* SAP Accent Gold */
+  --sap-bg: #eff4f9;            /* Fiori Shell Background */
+  --sap-surface: #ffffff;       /* Card/Content Surface */
+  --sap-border: #d3d7d9;        /* Input/Component Border */
+  --sap-text: #32363a;          /* Primary Text Color */
+  --sap-muted: #6a6d70;         /* Secondary/Muted Text */
+  --sap-error: #bb0000;         /* Semantic Error */
+  --sap-warning: #e9730c;       /* Semantic Warning */
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --max-width: 1000px;
 }
 
-* {
-  margin: 0;
-  padding: 0;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
+  margin: 0;
+  background: var(--sap-bg);
+  color: var(--sap-text);
+  font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-.topbar {
-  background: var(--primary);
-  color: #fff;
-  padding: 0.75rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-.brand {
-  text-decoration: none;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-}
-
-.brand span {
-  font-size: 0.7rem;
-  font-weight: 700;
-  opacity: 0.8;
-  letter-spacing: 0.05em;
-}
-
-.brand strong {
-  font-family: var(--font-heading);
-  font-size: 1.1rem;
-}
-
-.page {
-  max-width: 1000px;
+.container {
+  width: min(calc(100% - 2rem), var(--max-width));
   margin: 0 auto;
-  padding: 2rem;
+  padding: 4rem 0;
 }
 
-.hero {
-  background: var(--surface);
-  padding: 2.5rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  margin-bottom: 2rem;
-}
-
-.eyebrow {
-  color: var(--primary);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-  display: block;
+header {
+  margin-bottom: 3rem;
+  background: var(--sap-midnight);
+  color: #ffffff;
+  padding: 3rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 h1 {
-  font-family: var(--font-heading);
-  font-size: 2.25rem;
-  color: #002329;
-  margin-bottom: 1rem;
-}
-
-.lead {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-}
-
-.notice {
-  background: var(--primary-light);
-  border: 1px solid var(--primary-border);
-  padding: 0.75rem 1.25rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 2.5rem;
   font-weight: 600;
-  color: var(--primary);
-  display: inline-block;
+  margin: 0 0 0.5rem 0;
 }
 
-.section-title {
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  margin: 2.5rem 0 1rem;
-  padding-left: 0.75rem;
-  border-left: 4px solid var(--primary);
+.eyebrow {
+  display: inline-block;
+  color: var(--sap-gold);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.notice-box {
+  background: #fff;
+  border-left: 5px solid var(--sap-blue);
+  padding: 1.25rem 2rem;
+  margin-bottom: 2.5rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  color: var(--sap-midnight);
 }
 
 .issue-stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.issue {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
+.issue-card {
+  background: var(--sap-surface);
+  border: 1px solid var(--sap-border);
+  border-radius: 4px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.issue-card:hover {
+  box-shadow: 0 8px 24px rgba(0,90,158,0.1);
+  border-color: var(--sap-blue);
 }
 
 .issue-header {
@@ -139,82 +100,98 @@ h1 {
   align-items: center;
   margin-bottom: 1rem;
   border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 0.75rem;
+  padding-bottom: 1rem;
 }
 
 .issue-meta {
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--sap-muted);
 }
-
-.issue.critical .issue-meta { color: var(--critical); }
-.issue.high .issue-meta { color: var(--high); }
-.issue.medium .issue-meta { color: var(--medium); }
 
 .badge {
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  text-transform: uppercase;
 }
 
-.badge.confirmed { background: var(--success-bg); color: var(--success); border: 1px solid #b7eb8f; }
-.badge.warning { background: var(--medium-bg); color: var(--medium); border: 1px solid #ffe58f; }
-
-.issue-body h2 {
-  font-size: 1.25rem;
-  margin-bottom: 0.75rem;
-  color: #262626;
+.badge-confirmed {
+  background: #e7f4ff;
+  color: var(--sap-blue);
+  border: 1px solid var(--sap-blue);
 }
 
-.issue-body p {
-  margin-bottom: 0.75rem;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
+.badge-warning {
+  background: #fff4e5;
+  color: var(--sap-warning);
+  border: 1px solid var(--sap-warning);
 }
 
-.issue-body strong {
-  color: #000;
+h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--sap-midnight);
 }
 
-code {
-  font-family: SFMono-Regular, Consolas, monospace;
-  background: #f5f5f5;
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.9em;
-  color: #c41d7f;
+.description {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
 }
 
-.code-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.code-evidence {
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  padding: 1rem;
+.code-block {
+  font-family: var(--font-mono);
+  background: #2b3033; /* SAP Terminal Dark */
+  color: #f5f5f5;
+  padding: 0;
   border-radius: 4px;
+  font-size: 0.85rem;
+  overflow: hidden;
+  border: 1px solid #1a1a1a;
 }
 
-.file-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #8c8c8c;
-  margin-bottom: 0.5rem;
+.code-inner {
+  padding: 1.25rem 0;
   display: block;
 }
 
-pre {
+.code-line {
+  display: block;
+  padding: 0 1.5rem;
+  white-space: pre;
+}
+
+.buggy-line {
+  background: rgba(233, 115, 12, 0.15);
+  border-left: 4px solid var(--sap-warning);
+  color: #ffcc00;
+}
+
+.buggy-line::after {
+  content: " [!] LOGIC ERROR";
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--sap-warning);
+}
+
+.code-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--sap-muted);
+  margin-bottom: 0.4rem;
+}
+
+footer {
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--sap-muted);
   font-size: 0.85rem;
-  overflow-x: auto;
-  color: #595959;
 }
 
 @media (max-width: 768px) {
-  .code-grid { grid-template-columns: 1fr; }
-  .page { padding: 1rem; }
+  header { padding: 1.5rem; }
+  h1 { font-size: 1.8rem; }
 }

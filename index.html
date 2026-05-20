@@ -1,203 +1,237 @@
 <!DOCTYPE html>
 <html lang="th">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Budget Add-on review notes"
-    />
-    <title>Budget Add-on Review Notes</title>
-    <link rel="stylesheet" href="assets/css/addons-budget-flow.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="index.html">
-        <span>UAT_JBF2</span>
-        <strong>Budget Add-on Review Notes</strong>
-      </a>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สรุปผลการตรวจสอบ Budget Flow (ฉบับละเอียด 8 รายการ) // SAP B1 HANA</title>
+  <link rel="stylesheet" href="assets/css/addons-budget-flow.css">
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="eyebrow">SAP Business One // รายงานการตรวจสอบระบบเชิงลึก (In-depth Audit)</span>
+      <h1>รายการข้อผิดพลาด Budget Flow (ฉบับละเอียด)</h1>
+      <p style="opacity: 0.9; font-size: 1.1rem; margin: 0.5rem 0 0 0;">
+        แสดงรายละเอียดโค้ดที่เป็นปัญหาทั้ง 8 จุด เพื่อใช้เป็นหลักฐานในการแก้ไขระบบ (UAT_JBF2)
+      </p>
     </header>
 
-    <main class="page">
-      <section class="hero">
-        <span class="eyebrow">ข้อเสนอให้ Vendor ตรวจสอบ</span>
-        <h1>ข้อสังเกต Budget Add-on ก่อน port ไป SBO_*</h1>
-        <p class="lead">
-          เอกสารสรุปผลการตรวจสอบ Logic งบประมาณจาก Source Code ล่าสุด 
-          เพื่อใช้เป็นแนวทางในการปรับปรุงก่อนขึ้นระบบจริง
-        </p>
-        <div class="notice">
-          Formula: Reserved = PR + PO | Actual = AP + CN + JE + OUTGOING + GI + GR
+    <div class="notice-box">
+      สูตรการคำนวณ: <span style="color: var(--sap-blue)">Reserved = PR + PO</span> | <span style="color: var(--sap-warning)">Actual = AP + CN + JE + OUTGOING + GI + GR</span>
+    </div>
+
+    <div class="issue-stack">
+      
+      <!-- Issue 1 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_01 // PROCUREMENT_BLOCK</div>
+          <span class="badge badge-confirmed">วิกฤต</span>
         </div>
-      </section>
+        <h2>1. บั๊ก AP Error 1299: หยุด flow ที่ PR / PO / AP</h2>
+        <p class="description">
+          backend budget ยังประมวลผล flow หลักไม่ถูกต้อง ทำให้การทำ Copy PO -> AP ล้มเหลวด้วย Error 1299 เพราะตัวแปร <code>:datakey</code> ไม่ถูกแก้ไขให้รองรับการ Copy.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP (บรรทัด 146-150)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">if(:transaction_type IN ('A','C')) then</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">  Select "CANCELED" into IsCancelled From OPCH Where "DocEntry" = :datakey;</span>
+            <span class="code-line"></span>
+            <span class="code-line">  IF IsCancelled = 'C' then</span>
+            <span class="code-line">    for currloop as loopinvcancel do</span>
+            <span class="code-line">      IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then</span>
+          </div>
+        </div>
+      </article>
 
-      <h2 class="section-title">ผลการทดสอบล่าสุด</h2>
-      <section class="issue-stack">
-        <article class="issue critical">
-          <div class="issue-header">
-            <div class="issue-meta">UAT (Verified)</div>
-            <span class="badge confirmed">Confirmed in Reference Code</span>
+      <!-- Issue 2 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_02 // TN_TRIGGER_MISSING</div>
+          <span class="badge badge-confirmed">ยืนยันแล้ว</span>
+        </div>
+        <h2>2. บั๊ก Call List (TN): ขาดการส่งค่า GRPO / Return</h2>
+        <p class="description">
+          ใน <code>SBO_SP_TransactionNotification</code> ขาดการเรียกใช้ Budget Control สำหรับเอกสารประเภท 20 (GRPO) และ 21 (Return) ทำให้รายการเหล่านี้ไม่ถูกตรวจสอบงบ.
+        </p>
+        <span class="code-label">ไฟล์: SBO_SP_TransactionNotification (บรรทัด 564-569)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">if :error = 0 then</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">  IF :object_type In ('22','18','19','30','24','46','59','60') then</span>
+            <span class="code-line">    call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:datakey,...);</span>
+            <span class="code-line">  end if;</span>
+            <span class="code-line">end if;</span>
           </div>
-          <div class="issue-body">
-            <h2>ผล UAT ล่าสุด: หยุด flow test ที่ PR / PO / AP</h2>
-            <p><strong>Fail:</strong> Case 1, 3, 7, 8, 9 เพราะ backend budget ยังประมวลผล flow หลักไม่ถูกต้อง.</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">File: NDBS_BUDGET_AP (Line 148)</span>
-              <pre><code>-- สาเหตุที่ Copy PO -> AP แล้ว Error 1299
-Select "CANCELED" into IsCancelled
-From OPCH
-Where "DocEntry" = :datakey; -- :datakey เป็นค่าว่างหรือผิดตอน CopyTo</code></pre>
-            </div>
-          </div>
-        </article>
-      </section>
+        </div>
+      </article>
 
-      <h2 class="section-title">ประเด็นระดับวิกฤต (Critical Issues)</h2>
-      <section class="issue-stack">
-        <article class="issue critical">
-          <div class="issue-header">
-            <div class="issue-meta">P0 (Verified)</div>
-            <span class="badge confirmed">Confirmed in TransactionNotification</span>
+      <!-- Issue 3 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_03 // CONTROL_DISPATCH_MISSING</div>
+          <span class="badge badge-confirmed">ยืนยันแล้ว</span>
+        </div>
+        <h2>3. บั๊ก Dispatcher: ขาดตัวรับสำหรับ Outgoing/GI/GR</h2>
+        <p class="description">
+          ถึงแม้ TN จะส่งค่ามา แต่ใน <code>NDBS_BUDGET_CONTROL</code> ไม่มี Branch (elseif) มารองรับเอกสาร 24, 46, 59, 60 ทำให้รายการ Actual เหล่านี้ไม่เกิด movement.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL (บรรทัด 564-576)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">  if ( :object_type = '22') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_PO (...);</span>
+            <span class="code-line">  elseif ( :object_type = '20') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_GRPO (...);</span>
+            <span class="code-line">  elseif ( :object_type = '18') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_AP (...);</span>
+            <span class="code-line">  elseif ( :object_type = '21') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_RETURN (...);</span>
+            <span class="code-line">  elseif ( :object_type = '19') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_APCN (...);</span>
+            <span class="code-line">  elseif ( :object_type = '30') then</span>
+            <span class="code-line">    Call NDBS_BUDGET_JE (...);</span>
+            <span class="code-line buggy-line">  -- ขาด ELSEIF สำหรับ Object 24, 46, 59, 60 ทำให้งบไม่ตัด</span>
+            <span class="code-line">  end if;</span>
           </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ CALL list กับ dispatch</h2>
-            <p><strong>ข้อสังเกต:</strong> ข้อมูลที่ส่งเข้ากับตัวรับใน Control ไม่ตรงกัน ทำให้บางเอกสารงบไม่ตัด.</p>
-            <div class="code-grid">
-              <div class="code-evidence buggy">
-                <span class="file-label">SBO_SP_TransactionNotification (Line 566)</span>
-                <pre><code>-- ขาด 20 (GRPO) และ 21 (Return)
-IF :object_type In ('22','18','19','30','24','46','59','60') then
-  call NDBS_BUDGET_CONTROL (...);
-end if;</code></pre>
+        </div>
+      </article>
+
+      <!-- Issue 4 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_04 // PR_RESERVE_DISABLED</div>
+          <span class="badge badge-confirmed">ยืนยันแล้ว</span>
+        </div>
+        <h2>4. บั๊ก PR Reserve: ระบบไม่จองงบประมาณ PR</h2>
+        <p class="description">
+          Logic การจองงบในขั้นตอน PR (Reserved) ถูกปิดไว้ (Comment out) ทำให้ยอด Available สูงเกินจริง.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL (บรรทัด 562-563)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line buggy-line">  --if ( :object_type = '1470000113') then</span>
+            <span class="code-line buggy-line">  --  Call NDBS_BUDGET_PR (:object_type,:transaction_type,:datakey,:error,:error_message);</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Issue 5 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_05 // ACCOUNT_MAPPING_ERROR</div>
+          <span class="badge badge-confirmed">ยืนยันแล้ว</span>
+        </div>
+        <h2>5. บั๊ก Account Mapping: ใช้ Field ผิดในการหากลุ่มงบ</h2>
+        <p class="description">
+          ใน AP Invoice มีการใช้ <code>AcctCode</code> (รหัสภายใน) มา Join กับตารางกลุ่มงบประมาณที่เก็บเป็น <code>FormatCode</code> (รหัสผังบัญชี) ทำให้หาคู่ไม่เจอ.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP (บรรทัด 600-604)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"</span>
+            <span class="code-line">Inner Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry" AND ...</span>
+            <span class="code-line">Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"</span>
+            <span class="code-line buggy-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span>
+            <span class="code-line">Inner Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Issue 6 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_06 // APCN_CANCEL_LOGIC</div>
+          <span class="badge badge-confirmed">ยืนยันแล้ว</span>
+        </div>
+        <h2>6. บั๊ก APCN Cancel: เงื่อนไขการยกเลิกใบลดหนี้ผิด</h2>
+        <p class="description">
+          ใช้เงื่อนไข <code>BCount >= 0</code> ซึ่งเป็นจริงเสมอแม้ไม่มีข้อมูล ทำให้ระบบพยายาม Reverse งบจากข้อมูลแถวแรกที่เจอแทนที่จะเป็นแถวที่ถูกต้อง.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_APCN (บรรทัด 143-151)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">Select Count(*)  into BCount From "NDBS_BGC_OBPE" </span>
+            <span class="code-line">  Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND ...;</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">IF BCount >= 0 then</span>
+            <span class="code-line">  Select TOP 1 "BudgetYear","BudgetGroup","Project" into OldYear,OldGroup,OldProject</span>
+            <span class="code-line">  From "NDBS_BGC_OBPE" </span>
+            <span class="code-line">  Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND ...</span>
+            <span class="code-line">  Order By "DocEntry" Desc;</span>
+            <span class="code-line">end if;</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Issue 7 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_07 // MAPPING_INCONSISTENCY</div>
+          <span class="badge badge-warning">ข้อควรระวัง</span>
+        </div>
+        <h2>7. บั๊ก Mapping Inconsistency: การจับคู่รหัสกลุ่มงบไม่สม่ำเสมอ</h2>
+        <p class="description">
+          การเปรียบเทียบการ Join ตารางงบประมาณในแต่ละ Procedure ไม่เหมือนกัน (บางไฟล์ใช้ FormatCode บางไฟล์ใช้ AcctCode) ทำให้ผลลัพธ์ไม่เสถียร.
+        </p>
+        <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <span class="code-label">ตัวอย่างที่ถูก (NDBS_BUDGET_APCN:161)</span>
+            <div class="code-block">
+              <div class="code-inner">
+                <span class="code-line">Inner Join "@NDBS_BGC_BGPL" T5</span>
+                <span class="code-line">ON T5."U_FormatCode" = T4."FormatCode"</span>
               </div>
-              <div class="code-evidence buggy">
-                <span class="file-label">NDBS_BUDGET_CONTROL (Line 144+)</span>
-                <pre><code>-- รับ 20/21 เข้ามาแต่ในนี้ไม่มี CASE สำหรับ 24, 46, 59, 60
-if ( :object_type = '22') then ...
-elseif ( :object_type = '20') then ...
--- ขาด CASE สำหรับ OUTGOING/GI/GR</code></pre>
+            </div>
+          </div>
+          <div>
+            <span class="code-label">ตัวอย่างที่ผิด (NDBS_BUDGET_AP:603)</span>
+            <div class="code-block">
+              <div class="code-inner">
+                <span class="code-line">Inner Join "@NDBS_BGC_BGPL" T5</span>
+                <span class="code-line buggy-line">ON T5."U_FormatCode" = T4."AcctCode"</span>
               </div>
             </div>
           </div>
-        </article>
+        </div>
+      </article>
 
-        <article class="issue critical">
-          <div class="issue-header">
-            <div class="issue-meta">P0 (Verified)</div>
-            <span class="badge warning">Confirmed Missing in Main Entry</span>
+      <!-- Issue 8 -->
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_08 // CONCURRENCY_RISK</div>
+          <span class="badge badge-warning">ความเสี่ยงใหม่</span>
+        </div>
+        <h2>8. บั๊ก Concurrency Risk: การรัน PK ภายใน Loop</h2>
+        <p class="description">
+          มีการใช้ <code>SELECT MAX("DocEntry")+1</code> ภายใน Loop สำหรับการทำ <code>INSERT</code> เสี่ยงต่อการเกิด Primary Key Violation เมื่อใช้งานพร้อมกันหลายคน.
+        </p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP (บรรทัด 618-627)</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">BAmount = -:BAmount;</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";</span>
+            <span class="code-line"></span>
+            <span class="code-line">INSERT INTO "NDBS_BGC_OBPE" ("DocEntry","BudgetGroup" ,"BudgetYear",...)</span>
+            <span class="code-line">VALUES (:AutoKey,:BCode,TO_NVARCHAR(:BYear),...);</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";</span>
+            <span class="code-line">-- มีการเรียก MAX ซ้ำๆ ภายใน Loop เดิม เสี่ยงต่อ Index ไม่ทันสมัย</span>
           </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ PR reserve</h2>
-            <p><strong>ข้อสังเกต:</strong> ระบบยังไม่จองงบในขั้นตอน PR (Reserved) เพราะถูกปิดไว้.</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">NDBS_BUDGET_CONTROL (Line 144)</span>
-              <pre><code>-- CALL ถูก Comment ไว้ ทำให้ PR ไม่ตัดงบ
---if ( :object_type = '1470000113') then
---  Call NDBS_BUDGET_PR (...);</code></pre>
-            </div>
-          </div>
-        </article>
-      </section>
+        </div>
+      </article>
 
-      <h2 class="section-title">ประเด็นระดับสูง (High Priority)</h2>
-      <section class="issue-stack">
-        <article class="issue high">
-          <div class="issue-header">
-            <div class="issue-meta">P1 (Verified)</div>
-            <span class="badge confirmed">Confirmed in Reference Code</span>
-          </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ route ของ OUTGOING / GI / GR</h2>
-            <p><strong>ข้อสังเกต:</strong> Actual ของเอกสารเหล่านี้ไม่เข้า Ledger เพราะเงื่อนไขใน JE Procedure.</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">NDBS_BUDGET_JE</span>
-              <pre><code>-- เช็ค TransType ครบแต่ Dispatcher ใน Control ไม่ส่งมา
-AND T0."TransType" IN( '30','46','24','59','60')
-AND T0."TransId" = :datakey;</code></pre>
-            </div>
-          </div>
-        </article>
+    </div>
 
-        <article class="issue high">
-          <div class="issue-header">
-            <div class="issue-meta">P1 (Verified)</div>
-            <span class="badge confirmed">Confirmed in Reference Code</span>
-          </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ APCN cancel condition</h2>
-            <p><strong>ข้อสังเกต:</strong> เงื่อนไขการหาค่าเก่าเพื่อ Reverse งบทำงานผิดพลาด (>= 0).</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">NDBS_BUDGET_APCN</span>
-              <pre><code>-- เป็นจริงเสมอแม้ไม่มีข้อมูล ทำให้เสี่ยงดึงผิดแถวมา Reverse
-IF BCount >= 0 then
-  Select TOP 1 ... From "NDBS_BGC_OBDE";
-end if;</code></pre>
-            </div>
-          </div>
-        </article>
+    <footer>
+      SAP Business One Service Layer // HANA SQLScript Engine // รายงานฉบับละเอียดสมบูรณ์ (8 รายการ)
+    </footer>
+  </div>
 
-        <article class="issue high">
-          <div class="issue-header">
-            <div class="issue-meta">P1 (Verified)</div>
-            <span class="badge confirmed">Confirmed in Reference Code</span>
-          </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ AP account mapping</h2>
-            <p><strong>ข้อสังเกต:</strong> การ Mapping GL Account เข้ากับ Budget Group ไม่สม่ำเสมอ.</p>
-            <div class="code-grid">
-              <div class="code-evidence buggy">
-                <span class="file-label">NDBS_BUDGET_AP (Correct Pattern)</span>
-                <pre><code>ON T5."U_FormatCode" = T4."FormatCode"</code></pre>
-              </div>
-              <div class="code-evidence buggy">
-                <span class="file-label">NDBS_BUDGET_AP (Buggy Pattern)</span>
-                <pre><code>-- ใช้ AcctCode แทน FormatCode ทำให้หา Group ไม่เจอ
-ON T5."U_FormatCode" = T4."AcctCode"</code></pre>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <h2 class="section-title">ประเด็นระดับกลางและข้อสังเกตเพิ่มเติม</h2>
-      <section class="issue-stack">
-        <article class="issue medium">
-          <div class="issue-header">
-            <div class="issue-meta">NEW</div>
-            <span class="badge warning">Potential Bug</span>
-          </div>
-          <div class="issue-body">
-            <h2>ความเสี่ยงด้าน Concurrency (Primary Key Violation)</h2>
-            <p><strong>ข้อสังเกต:</strong> การหา Key ใหม่ภายใน Loop มีความเสี่ยงสูงหากใช้งานพร้อมกัน.</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">NDBS_BUDGET_AP / GRPO / RETURN</span>
-              <pre><code>-- ใช้ MAX ใน Loop เสี่ยงเกิด Primary Key Violation
-FOR ... DO
-  SELECT MAX("DocEntry")+1 INTO AutoKey FROM ...;
-  INSERT INTO ... VALUES (:AutoKey, ...);
-END FOR;</code></pre>
-            </div>
-          </div>
-        </article>
-
-        <article class="issue medium">
-          <div class="issue-header">
-            <div class="issue-meta">P2 (Verified)</div>
-            <span class="badge warning">Confirmed Risk</span>
-          </div>
-          <div class="issue-body">
-            <h2>ควรตรวจสอบ performance ของ UpdateAllBudgetAmount</h2>
-            <p><strong>ข้อสังเกต:</strong> การ Refresh งบประมาณทั้งระบบทุกครั้งที่บันทึกเอกสาร.</p>
-            <div class="code-evidence buggy">
-              <span class="file-label">NDBS_BUDGET_CONTROL</span>
-              <pre><code>-- เรียก Full Refresh ทุก Transaction
-if (error = 0) then
-  call NDBS_UpdateAllBudgetAmount;
-end if;</code></pre>
-            </div>
-          </div>
-        </article>
-      </section>
-    </main>
-  </body>
+</body>
 </html>
