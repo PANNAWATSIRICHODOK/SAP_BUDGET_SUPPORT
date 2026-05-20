@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>สรุปผลการตรวจสอบ Budget Flow (8 รายการ) // SAP B1 HANA</title>
+  <title>สรุปผลการตรวจสอบ Budget Flow (ฉบับละเอียดสูงสุด) // SAP B1 HANA</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -157,6 +157,7 @@
       font-size: 0.85rem;
       overflow-x: auto;
       border: 1px solid #1a1a1a;
+      margin-bottom: 1rem;
     }
 
     .code-inner {
@@ -209,10 +210,10 @@
 
   <div class="container">
     <header>
-      <span class="eyebrow">SAP Business One // รายงานการตรวจสอบระบบเชิงลึก</span>
+      <span class="eyebrow">SAP Business One // รายงานการตรวจสอบระบบเชิงลึก (Final Audit)</span>
       <h1>รายการข้อผิดพลาด Budget Flow (ฉบับสมบูรณ์)</h1>
       <p style="opacity: 0.9; font-size: 1.1rem; margin: 0.5rem 0 0 0;">
-        รวมบั๊กทั้งหมดที่ตรวจพบใน HANA Stored Procedures ไว้ในไฟล์เดียว (Single Page Report)
+        แสดงรายละเอียดโค้ดที่เป็นปัญหาทั้ง 8 จุด พร้อมหลักฐานเชิงลึก
       </p>
     </header>
 
@@ -357,13 +358,38 @@
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">BUG_07 // MAPPING_INCONSISTENCY</div>
-          <span class="badge badge-warning">ข้อควรระวัง</span>
+          <span class="badge badge-confirmed">วิกฤตความสม่ำเสมอ</span>
         </div>
         <h2>7. บั๊ก Mapping Inconsistency: การจับคู่รหัสกลุ่มงบไม่สม่ำเสมอ</h2>
         <p class="description">
-          การ Join ตารางงบประมาณในแต่ละ Procedure ไม่เหมือนกัน (สลับระหว่าง FormatCode และ AcctCode).
+          พบการใช้ Field ในการ Join ตารางกลุ่มงบประมาณที่ **ไม่ตรงกัน** ในแต่ละ Procedure ทำให้การตรวจสอบงบประมาณล้มเหลวในบางเอกสาร.
         </p>
-        <span class="code-label">ข้อสังเกต: ตรวจพบความแตกต่างระหว่างไฟล์ APCN (ถูก) และ AP (ผิด)</span>
+        
+        <div style="margin-top: 1.5rem;">
+          <span class="code-label">หลักฐาน 7.1: ตัวอย่างที่ถูกต้อง (ใช้ FormatCode ใน NDBS_BUDGET_APCN:161)</span>
+          <div class="code-block">
+            <div class="code-inner">
+              <span class="code-line">Inner Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry"</span>
+              <span class="code-line">Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"</span>
+              <span class="code-line" style="color: #4cd964; font-weight: 700;">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."FormatCode"</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <span class="code-label">หลักฐาน 7.2: ตัวอย่างที่ผิด (ใช้ AcctCode ใน NDBS_BUDGET_AP:603)</span>
+          <div class="code-block">
+            <div class="code-inner">
+              <span class="code-line">Inner Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry"</span>
+              <span class="code-line">Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"</span>
+              <span class="code-line buggy-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span>
+            </div>
+          </div>
+        </div>
+        
+        <p style="font-size: 0.85rem; color: var(--sap-error); font-weight: 600; margin-top: 1rem;">
+          * การใช้ AcctCode (รหัสภายใน) มาเทียบกับ U_FormatCode (รหัสผังบัญชี) จะทำให้ระบบหาคู่ของงบประมาณไม่เจอเสมอ
+        </p>
       </article>
 
       <!-- Issue 8 -->
@@ -376,11 +402,15 @@
         <p class="description">
           มีการใช้ <code>SELECT MAX("DocEntry")+1</code> ภายใน Loop สำหรับการทำ <code>INSERT</code> เสี่ยงต่อการเกิดเลขซ้ำเมื่อใช้หลายคน.
         </p>
-        <span class="code-label">พบใน Procedure: GRPO, RETURN, AP</span>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP (บรรทัด 618-627)</span>
         <div class="code-block">
           <div class="code-inner">
+            <span class="code-line">BAmount = -:BAmount;</span>
+            <span class="code-line"></span>
             <span class="code-line buggy-line">Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";</span>
-            <span class="code-line">INSERT INTO "NDBS_BGC_OBPE" ("DocEntry",...) VALUES (:AutoKey,...);</span>
+            <span class="code-line"></span>
+            <span class="code-line">INSERT INTO "NDBS_BGC_OBPE" ("DocEntry","BudgetGroup" ,"BudgetYear",...)</span>
+            <span class="code-line">VALUES (:AutoKey,:BCode,TO_NVARCHAR(:BYear),...);</span>
           </div>
         </div>
       </article>
@@ -388,7 +418,7 @@
     </div>
 
     <footer>
-      SAP Business One Service Layer // HANA SQLScript Engine // One-Page Comprehensive Report
+      SAP Business One Service Layer // HANA SQLScript Engine // Final Technical Report
     </footer>
   </div>
 
