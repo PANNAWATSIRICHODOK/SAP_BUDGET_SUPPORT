@@ -34,10 +34,12 @@
 
       <section class="issue-stack" aria-label="ผล UAT ล่าสุด">
         <article class="issue critical">
-          <div class="issue-meta">UAT</div>
+          <div class="issue-meta">UAT (Verified)</div>
           <div class="issue-body">
             <h2>ผล UAT ล่าสุด: หยุด flow test ที่ PR / PO / AP</h2>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in Reference Code</span></p>
             <p><strong>Fail:</strong> Case 1, 3, 7, 8, 9 เพราะ backend budget ยังประมวลผล flow หลักไม่ถูกต้อง. Copy PR ไป PO ได้แต่ยอด Reserve ไม่ถูกต้อง และ Copy PO ไป AP Invoice ไม่ได้จาก error <code>1299 no data found</code> ที่ <code>NDBS_BUDGET_AP</code> line 148.</p>
+            <p><strong>Verification Note:</strong> พบว่าไฟล์ใน <code>references/Store_And_Budget</code> ยังมี code ที่ก่อให้เกิด error นี้จริง (ตรวจสอบแล้วที่ line 148 ในไฟล์ <code>NDBS_BUDGET_AP</code>).</p>
             <p><strong>Pending:</strong> Case 4, 5, 6 ควรรอ vendor แก้ PR/PO/AP ก่อน เพราะเป็น flow ถัดไปหรือใช้ยอด Monitor ที่อ้างอิง backend ledger เดียวกัน.</p>
             <p><strong>Retest:</strong> Case 2 ยังรอทดสอบ Table Update ตอน login. Case 10 ยังแยกทดสอบได้ เพราะเป็น setup function เรื่อง Budget Group / GL ไม่ได้พึ่ง flow PR/PO/AP โดยตรง.</p>
           </div>
@@ -46,12 +48,13 @@
 
       <section class="issue-stack" aria-label="ข้อเสนอให้ตรวจสอบ">
         <article class="issue critical">
-          <div class="issue-meta">P0</div>
+          <div class="issue-meta">P0 (Verified)</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ CALL list กับ dispatch</h2>
-            <p><strong>ข้อสังเกต:</strong> TransactionNotification ส่ง <code>22,18,19,30,24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> รับเฉพาะ <code>22,20,18,21,19,30</code>.</p>
-            <p><strong>ความเสี่ยง:</strong> <code>20/21</code> อาจไม่ถูกเรียก แม้มี procedure. <code>24/46/59/60</code> อาจเข้า control แล้วไม่มี branch รับ ทำให้ movement บางรายการไม่เกิด.</p>
-            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน list ทั้งสองฝั่ง. หาก logic ควรผ่าน control ให้เพิ่ม <code>20,21,1470000113</code> ใน TransactionNotification และเพิ่ม route สำหรับ <code>24/46/59/60</code> ใน <code>NDBS_BUDGET_CONTROL</code>. หากจัดการที่ layer อื่นอยู่แล้ว ขอ test evidence ประกอบ.</p>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in TransactionNotification</span></p>
+            <p><strong>ข้อสังเกต:</strong> ใน <code>SBO_SP_TransactionNotification</code> (บรรทัด 566) ส่งเฉพาะ <code>22, 18, 19, 30, 24, 46, 59, 60</code> เข้า <code>NDBS_BUDGET_CONTROL</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> <code>20/21</code> (GRPO/Return) ไม่ถูกส่งเข้า Budget Control. ส่วน <code>24, 46, 59, 60</code> ถูกส่งเข้าไปแต่ใน <code>NDBS_BUDGET_CONTROL</code> ไม่มี branch รับ (ไม่มี CASE สำหรับเลขเหล่านี้) ทำให้ movement ไม่เกิดขึ้น.</p>
+            <p><strong>ข้อเสนอ:</strong> แก้ไขเงื่อนไข IF ใน <code>SBO_SP_TransactionNotification</code> ให้ครอบคลุมทุก object ที่ต้องการคุมงบ และเพิ่ม CASE ใน <code>NDBS_BUDGET_CONTROL</code> ให้ครบตามที่ส่งมา.</p>
             <div class="code-grid">
               <div class="code-evidence">
                 <p class="file-label">File: SBO_SP_TRANSACTIONNOTIFICATION</p>
@@ -83,12 +86,14 @@ end if;</code></pre>
         </article>
 
         <article class="issue critical">
-          <div class="issue-meta">P0</div>
+          <div class="issue-meta">P0 (Verified)</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ PR reserve</h2>
-            <p><strong>ข้อสังเกต:</strong> คู่มือให้ PR เป็น Reserved แต่ call <code>NDBS_BUDGET_PR</code> ถูก comment, TransactionNotification ไม่ส่ง <code>1470000113</code>, และ deploy package ชุดนี้ไม่มีไฟล์ <code>NDBS_BUDGET_PR</code>.</p>
+            <p><strong>Status:</strong> <span class="badge warning">Confirmed Missing in Main Entry</span></p>
+            <p><strong>ข้อสังเกต:</strong> ใน <code>SBO_SP_TransactionNotification</code> ไม่มี <code>1470000113</code> ในรายการที่เรียก <code>NDBS_BUDGET_CONTROL</code> (บรรทัด 566) แม้จะมี Code ส่วนเช็ค Department ของ PR อยู่ที่บรรทัด 432 ก็ตาม.</p>
+            <p><strong>Verification Note:</strong> พบไฟล์ <code>NDBS_BUDGET_PR</code> อยู่ใน <code>NDBS_BUDGET_ALL</code> แต่ไม่มีใน <code>SBO_SP_TRANSACTIONNOTIFICATION</code> package. และใน <code>NDBS_BUDGET_CONTROL</code> บรรทัด 144 ก็ถูก Comment out ไว้.</p>
             <p><strong>ความเสี่ยง:</strong> ยอด available อาจสูงเกินจริง และอาจจองงบเกินก่อนถึง PO.</p>
-            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันว่า PR reserve ทำที่ layer ใด. หากต้องทำใน Budget Control ให้เพิ่ม <code>1470000113</code> ใน CALL list และเปิด dispatch ไป <code>NDBS_BUDGET_PR</code>.</p>
+            <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันว่า PR reserve ทำที่ layer ใด. หากต้องทำใน Budget Control ให้เพิ่ม <code>1470000113</code> ใน CALL list ของ TransactionNotification และเปิด dispatch ใน <code>NDBS_BUDGET_CONTROL</code>.</p>
             <div class="code-evidence">
               <p class="file-label">File: NDBS_BUDGET_CONTROL</p>
               <pre><code>--if ( :object_type = '1470000113') then
@@ -101,9 +106,10 @@ if ( :object_type = '22') then
         </article>
 
         <article class="issue high">
-          <div class="issue-meta">P0</div>
+          <div class="issue-meta">P0 (Verified)</div>
           <div class="issue-body">
             <h2>AP CopyTo เจอ no data found จาก datakey</h2>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in Reference Code</span></p>
             <p><strong>ข้อสังเกต:</strong> UAT test แบบ PO CopyTo AP error ที่ <code>NDBS_BUDGET_AP</code> line 148 เพราะ procedure เอา <code>:datakey</code> ไปหา <code>OPCH."DocEntry"</code> แล้วไม่เจอ record.</p>
             <p><strong>ความเสี่ยง:</strong> SAP frontend จะ post A/P Invoice ไม่ผ่านทันที แม้ข้อมูลหน้าเอกสารถูกต้อง เพราะ backend budget procedure throw error กลับมา.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันค่า key ที่ส่งเข้า budget flow. สำหรับ AP ควรใช้ DocEntry จาก <code>list_of_cols_val_tab_del</code> หรือทำให้ <code>datakey</code> เป็นค่าเดียวกันจริงก่อนเรียก <code>NDBS_BUDGET_AP</code>.</p>
@@ -132,9 +138,10 @@ Where "DocEntry" = :datakey;</code></pre>
         </article>
 
         <article class="issue high">
-          <div class="issue-meta">P1</div>
+          <div class="issue-meta">P1 (Verified)</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ route ของ OUTGOING / GI / GR</h2>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in Reference Code</span></p>
             <p><strong>ข้อสังเกต:</strong> <code>24/46/59/60</code> อยู่ใน CALL list และ <code>NDBS_BUDGET_JE</code> อ่าน <code>TransType</code> เหล่านี้ แต่ control call <code>NDBS_BUDGET_JE</code> เฉพาะ <code>object_type = '30'</code>.</p>
             <p><strong>ความเสี่ยง:</strong> Actual ของ OUTGOING/GI/GR อาจไม่เข้า budget ledger.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน engine ที่ใช้กับ object เหล่านี้. หากใช้ <code>NDBS_BUDGET_JE</code> ให้พิจารณาเพิ่ม branch <code>object_type IN ('24','46','59','60')</code>. หากไม่ใช่ ให้ยืนยัน procedure/dispatch ที่ถูกต้อง.</p>
@@ -157,9 +164,10 @@ end if;</code></pre>
         </article>
 
         <article class="issue high">
-          <div class="issue-meta">P1</div>
+          <div class="issue-meta">P1 (Verified)</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ APCN cancel condition</h2>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in Reference Code</span></p>
             <p><strong>ข้อสังเกต:</strong> <code>IF BCount &gt;= 0</code> เป็นจริงเสมอ ทั้ง department และ project.</p>
             <p><strong>ความเสี่ยง:</strong> ระบบอาจ reverse จาก row ที่ไม่มีจริง เสี่ยง null, reverse ผิดงบ, หรือสร้าง movement ผิดตอน cancel A/P Credit Memo.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยันเงื่อนไขนี้. หากต้องมี row ก่อน reverse ให้พิจารณาเปลี่ยนเป็น <code>IF BCount &gt; 0 then</code> และกำหนด else path เมื่อไม่มี movement.</p>
@@ -181,9 +189,10 @@ end if;</code></pre>
         </article>
 
         <article class="issue high">
-          <div class="issue-meta">P1</div>
+          <div class="issue-meta">P1 (Verified)</div>
           <div class="issue-body">
             <h2>ควรตรวจสอบ AP account mapping</h2>
+            <p><strong>Status:</strong> <span class="badge confirmed">Confirmed in Reference Code</span></p>
             <p><strong>ข้อสังเกต:</strong> branch ใกล้กันใช้ <code>U_FormatCode = FormatCode</code> แต่จุดหนึ่งใช้ <code>U_FormatCode = AcctCode</code>.</p>
             <p><strong>ความเสี่ยง:</strong> A/P Invoice อาจลง budget group ผิด หรือหา group ไม่เจอ.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ยืนยัน mapping key กลาง. หาก branch นี้ใช้ <code>U_FormatCode</code> ให้พิจารณาเปลี่ยน <code>T4."AcctCode"</code> เป็น <code>T4."FormatCode"</code>. หากใช้ account code ให้ใช้ pattern <code>U_AccountCode = AcctCode</code> ทั้งไฟล์.</p>
@@ -206,9 +215,21 @@ Inner Join "@NDBS_BGC_BGPL" T5
         </article>
 
         <article class="issue medium">
-          <div class="issue-meta">P2</div>
+          <div class="issue-meta">NEW</div>
           <div class="issue-body">
-            <h2>Full refresh หลัง transaction ยังเป็นความเสี่ยงด้าน performance</h2>
+            <h2>ความเสี่ยงด้าน Concurrency (Primary Key Violation)</h2>
+            <p><strong>Status:</strong> <span class="badge warning">Potential Bug</span></p>
+            <p><strong>ข้อสังเกต:</strong> ใน <code>NDBS_BUDGET_GRPO</code>, <code>NDBS_BUDGET_RETURN</code> และ <code>NDBS_BUDGET_AP</code> มีการใช้ <code>SELECT MAX("DocEntry")+1 INTO AutoKey</code> ภายใน Loop สำหรับการทำ <code>INSERT</code>.</p>
+            <p><strong>ความเสี่ยง:</strong> หากมีการบันทึกเอกสารพร้อมกันหลายราย หรือภายใน Loop เดียวกันมีหลายบรรทัด อาจเกิด Primary Key Violation ได้หากฐานข้อมูลยังไม่ update index ทันที หรือ logic ใน loop ไม่ได้ increment ค่าตัวแปรเอง.</p>
+            <p><strong>ข้อเสนอ:</strong> ควรใช้ HANA Sequence หรือดึงค่า MAX มาไว้นอก Loop แล้วใช้ตัวแปร increment ใน loop แทน.</p>
+          </div>
+        </article>
+
+        <article class="issue medium">
+          <div class="issue-meta">P2 (Verified)</div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ performance ของ UpdateAllBudgetAmount</h2>
+            <p><strong>Status:</strong> <span class="badge warning">Confirmed Risk</span></p>
             <p><strong>ข้อสังเกต:</strong> <code>NDBS_UpdateAllBudgetAmount</code> ถูกแก้เป็น set-based แล้ว แต่ยังถูกเรียกแบบ full refresh ทุก transaction.</p>
             <p><strong>ความเสี่ยง:</strong> ไม่ใช่ bug เดิมแล้ว แต่ยังควรทดสอบกับข้อมูลเยอะและหลาย user เพราะ transaction เล็กก็ยัง recalc ทั้งระบบ.</p>
             <p><strong>ข้อเสนอ:</strong> ให้ vendor ประเมิน performance จริง. หากกระทบการใช้งาน ให้พิจารณา targeted recalculation เฉพาะ budget key ที่เอกสารกระทบ หรือใช้ background job ที่จำกัด scope ได้.</p>
