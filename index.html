@@ -3,102 +3,201 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SAP Budget Support - Project Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background-color: #f0f2f5;
-        font-family: 'Inter', 'Sarabun', sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .container {
-        width: 100%;
-        max-width: 440px;
-        padding: 20px;
-      }
-
-      .card {
-        background: white;
-        padding: 40px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        text-align: center;
-      }
-
-      .header {
-        margin-bottom: 32px;
-      }
-
-      .logo {
-        background: #003a8c;
-        color: white;
-        width: 48px;
-        height: 48px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 1.5rem;
-        margin: 0 auto 16px;
-      }
-
-      h1 {
-        font-size: 24px;
-        color: rgba(0,0,0,0.85);
-        margin: 0 0 8px;
-      }
-
-      p {
-        color: rgba(0,0,0,0.45);
-        font-size: 14px;
-        margin: 0;
-      }
-
-      .btn {
-        display: block;
-        width: 100%;
-        padding: 12px;
-        background: #003a8c;
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        font-weight: 600;
-        margin-top: 32px;
-        transition: background 0.3s;
-      }
-
-      .btn:hover {
-        background: #002766;
-      }
-
-      .footer {
-        margin-top: 24px;
-        text-align: center;
-        color: rgba(0,0,0,0.45);
-        font-size: 14px;
-      }
-    </style>
+    <meta
+      name="description"
+      content="Budget Add-on review notes"
+    />
+    <title>Budget Add-on Review Notes</title>
+    <link rel="stylesheet" href="assets/css/addons-budget-flow.css" />
   </head>
   <body>
-    <div class="container">
-      <div class="card">
-        <div class="header">
-          <div class="logo">S</div>
-          <h1>SAP Budget Support</h1>
-          <p>UAT_JBF2 Project Documentation</p>
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span>UAT_JBF2</span>
+        <strong>Budget Add-on Review Notes</strong>
+      </a>
+    </header>
+
+    <main class="page">
+      <section class="hero">
+        <span class="eyebrow">ข้อเสนอให้ Vendor ตรวจสอบ</span>
+        <h1>ข้อสังเกต Budget Add-on ก่อน port ไป SBO_*</h1>
+        <p class="lead">
+          เอกสารสรุปผลการตรวจสอบ Logic งบประมาณจาก Source Code ล่าสุด 
+          เพื่อใช้เป็นแนวทางในการปรับปรุงก่อนขึ้นระบบจริง
+        </p>
+        <div class="notice">
+          Formula: Reserved = PR + PO | Actual = AP + CN + JE + OUTGOING + GI + GR
         </div>
-        <a href="./pages/addons-budget-flow.html" class="btn">View Review Notes</a>
-      </div>
-      <div class="footer">
-        © 2026 SAP Budget Support Project
-      </div>
-    </div>
+      </section>
+
+      <h2 class="section-title">ผลการทดสอบล่าสุด</h2>
+      <section class="issue-stack">
+        <article class="issue critical">
+          <div class="issue-header">
+            <div class="issue-meta">UAT (Verified)</div>
+            <span class="badge confirmed">Confirmed in Reference Code</span>
+          </div>
+          <div class="issue-body">
+            <h2>ผล UAT ล่าสุด: หยุด flow test ที่ PR / PO / AP</h2>
+            <p><strong>Fail:</strong> Case 1, 3, 7, 8, 9 เพราะ backend budget ยังประมวลผล flow หลักไม่ถูกต้อง.</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">File: NDBS_BUDGET_AP (Line 148)</span>
+              <pre><code>-- สาเหตุที่ Copy PO -> AP แล้ว Error 1299
+Select "CANCELED" into IsCancelled
+From OPCH
+Where "DocEntry" = :datakey; -- :datakey เป็นค่าว่างหรือผิดตอน CopyTo</code></pre>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <h2 class="section-title">ประเด็นระดับวิกฤต (Critical Issues)</h2>
+      <section class="issue-stack">
+        <article class="issue critical">
+          <div class="issue-header">
+            <div class="issue-meta">P0 (Verified)</div>
+            <span class="badge confirmed">Confirmed in TransactionNotification</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ CALL list กับ dispatch</h2>
+            <p><strong>ข้อสังเกต:</strong> ข้อมูลที่ส่งเข้ากับตัวรับใน Control ไม่ตรงกัน ทำให้บางเอกสารงบไม่ตัด.</p>
+            <div class="code-grid">
+              <div class="code-evidence buggy">
+                <span class="file-label">SBO_SP_TransactionNotification (Line 566)</span>
+                <pre><code>-- ขาด 20 (GRPO) และ 21 (Return)
+IF :object_type In ('22','18','19','30','24','46','59','60') then
+  call NDBS_BUDGET_CONTROL (...);
+end if;</code></pre>
+              </div>
+              <div class="code-evidence buggy">
+                <span class="file-label">NDBS_BUDGET_CONTROL (Line 144+)</span>
+                <pre><code>-- รับ 20/21 เข้ามาแต่ในนี้ไม่มี CASE สำหรับ 24, 46, 59, 60
+if ( :object_type = '22') then ...
+elseif ( :object_type = '20') then ...
+-- ขาด CASE สำหรับ OUTGOING/GI/GR</code></pre>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="issue critical">
+          <div class="issue-header">
+            <div class="issue-meta">P0 (Verified)</div>
+            <span class="badge warning">Confirmed Missing in Main Entry</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ PR reserve</h2>
+            <p><strong>ข้อสังเกต:</strong> ระบบยังไม่จองงบในขั้นตอน PR (Reserved) เพราะถูกปิดไว้.</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">NDBS_BUDGET_CONTROL (Line 144)</span>
+              <pre><code>-- CALL ถูก Comment ไว้ ทำให้ PR ไม่ตัดงบ
+--if ( :object_type = '1470000113') then
+--  Call NDBS_BUDGET_PR (...);</code></pre>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <h2 class="section-title">ประเด็นระดับสูง (High Priority)</h2>
+      <section class="issue-stack">
+        <article class="issue high">
+          <div class="issue-header">
+            <div class="issue-meta">P1 (Verified)</div>
+            <span class="badge confirmed">Confirmed in Reference Code</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ route ของ OUTGOING / GI / GR</h2>
+            <p><strong>ข้อสังเกต:</strong> Actual ของเอกสารเหล่านี้ไม่เข้า Ledger เพราะเงื่อนไขใน JE Procedure.</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">NDBS_BUDGET_JE</span>
+              <pre><code>-- เช็ค TransType ครบแต่ Dispatcher ใน Control ไม่ส่งมา
+AND T0."TransType" IN( '30','46','24','59','60')
+AND T0."TransId" = :datakey;</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="issue high">
+          <div class="issue-header">
+            <div class="issue-meta">P1 (Verified)</div>
+            <span class="badge confirmed">Confirmed in Reference Code</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ APCN cancel condition</h2>
+            <p><strong>ข้อสังเกต:</strong> เงื่อนไขการหาค่าเก่าเพื่อ Reverse งบทำงานผิดพลาด (>= 0).</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">NDBS_BUDGET_APCN</span>
+              <pre><code>-- เป็นจริงเสมอแม้ไม่มีข้อมูล ทำให้เสี่ยงดึงผิดแถวมา Reverse
+IF BCount >= 0 then
+  Select TOP 1 ... From "NDBS_BGC_OBDE";
+end if;</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="issue high">
+          <div class="issue-header">
+            <div class="issue-meta">P1 (Verified)</div>
+            <span class="badge confirmed">Confirmed in Reference Code</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ AP account mapping</h2>
+            <p><strong>ข้อสังเกต:</strong> การ Mapping GL Account เข้ากับ Budget Group ไม่สม่ำเสมอ.</p>
+            <div class="code-grid">
+              <div class="code-evidence buggy">
+                <span class="file-label">NDBS_BUDGET_AP (Correct Pattern)</span>
+                <pre><code>ON T5."U_FormatCode" = T4."FormatCode"</code></pre>
+              </div>
+              <div class="code-evidence buggy">
+                <span class="file-label">NDBS_BUDGET_AP (Buggy Pattern)</span>
+                <pre><code>-- ใช้ AcctCode แทน FormatCode ทำให้หา Group ไม่เจอ
+ON T5."U_FormatCode" = T4."AcctCode"</code></pre>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <h2 class="section-title">ประเด็นระดับกลางและข้อสังเกตเพิ่มเติม</h2>
+      <section class="issue-stack">
+        <article class="issue medium">
+          <div class="issue-header">
+            <div class="issue-meta">NEW</div>
+            <span class="badge warning">Potential Bug</span>
+          </div>
+          <div class="issue-body">
+            <h2>ความเสี่ยงด้าน Concurrency (Primary Key Violation)</h2>
+            <p><strong>ข้อสังเกต:</strong> การหา Key ใหม่ภายใน Loop มีความเสี่ยงสูงหากใช้งานพร้อมกัน.</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">NDBS_BUDGET_AP / GRPO / RETURN</span>
+              <pre><code>-- ใช้ MAX ใน Loop เสี่ยงเกิด Primary Key Violation
+FOR ... DO
+  SELECT MAX("DocEntry")+1 INTO AutoKey FROM ...;
+  INSERT INTO ... VALUES (:AutoKey, ...);
+END FOR;</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="issue medium">
+          <div class="issue-header">
+            <div class="issue-meta">P2 (Verified)</div>
+            <span class="badge warning">Confirmed Risk</span>
+          </div>
+          <div class="issue-body">
+            <h2>ควรตรวจสอบ performance ของ UpdateAllBudgetAmount</h2>
+            <p><strong>ข้อสังเกต:</strong> การ Refresh งบประมาณทั้งระบบทุกครั้งที่บันทึกเอกสาร.</p>
+            <div class="code-evidence buggy">
+              <span class="file-label">NDBS_BUDGET_CONTROL</span>
+              <pre><code>-- เรียก Full Refresh ทุก Transaction
+if (error = 0) then
+  call NDBS_UpdateAllBudgetAmount;
+end if;</code></pre>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
   </body>
 </html>
