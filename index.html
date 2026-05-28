@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UAT_JBF2 Budget Add-on Review</title>
+  <title>Budget Flow Review // SAP B1 HANA</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
     :root {
-      --blue: #005a9e;
-      --navy: #15364f;
-      --gold: #f0ab00;
-      --bg: #eff4f9;
-      --surface: #ffffff;
-      --border: #d3d7d9;
-      --text: #32363a;
-      --muted: #6a6d70;
-      --error: #bb0000;
-      --warning: #e9730c;
-      --mono: "JetBrains Mono", monospace;
-      --sans: "Inter", "Sarabun", "Noto Sans Thai", "Leelawadee UI", sans-serif;
-      --max: 1000px;
+      --sap-blue: #005a9e;
+      --sap-midnight: #003366;
+      --sap-gold: #f0ab00;
+      --sap-bg: #eff4f9;
+      --sap-surface: #ffffff;
+      --sap-border: #d3d7d9;
+      --sap-text: #32363a;
+      --sap-muted: #6a6d70;
+      --sap-error: #bb0000;
+      --sap-warning: #e9730c;
+      --sap-ok: #107e3e;
+      --font-sans: "Inter", "Sarabun", "Noto Sans Thai", sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
+      --max-width: 960px;
     }
 
     *,
@@ -31,132 +32,160 @@
 
     body {
       margin: 0;
-      color: var(--text);
-      background: var(--bg);
-      font-family: var(--sans);
-      line-height: 1.6;
+      background: var(--sap-bg);
+      color: var(--sap-text);
+      font-family: var(--font-sans);
+      line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
 
     .container {
-      width: min(calc(100% - 2rem), var(--max));
+      width: min(calc(100% - 2rem), var(--max-width));
       margin: 0 auto;
-      padding: 3rem 0 4rem;
+      padding: 4rem 0;
     }
 
     header {
-      padding: 2.25rem;
+      margin-bottom: 2rem;
+      padding: 3rem;
       border-radius: 8px;
-      background: var(--navy);
+      background: var(--sap-midnight);
       color: #ffffff;
-      box-shadow: 0 4px 12px rgba(21, 54, 79, 0.18);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .eyebrow {
       display: inline-block;
-      margin-bottom: 0.55rem;
-      color: var(--gold);
+      margin-bottom: 0.5rem;
+      color: var(--sap-gold);
       font-size: 0.8rem;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
     h1 {
-      margin: 0;
-      font-size: 2.2rem;
-      font-weight: 700;
-      letter-spacing: 0;
+      margin: 0 0 0.6rem;
+      font-size: clamp(1.9rem, 4vw, 2.5rem);
+      font-weight: 650;
     }
 
     header p {
-      max-width: 780px;
-      margin: 0.65rem 0 0;
-      opacity: 0.92;
-      font-size: 1rem;
+      max-width: 720px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 1.05rem;
     }
 
-    .notice {
-      margin: 1rem 0 1.4rem;
-      padding: 1rem 1.25rem;
-      border-left: 5px solid var(--blue);
-      background: var(--surface);
-      color: var(--navy);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    .notice-box {
+      margin-bottom: 2rem;
+      padding: 1.15rem 1.5rem;
+      border-left: 5px solid var(--sap-blue);
+      background: var(--sap-surface);
+      color: var(--sap-midnight);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      font-weight: 600;
     }
 
-    .notice strong {
-      color: var(--blue);
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .summary-item {
+      padding: 1rem;
+      border: 1px solid var(--sap-border);
+      border-radius: 6px;
+      background: var(--sap-surface);
+    }
+
+    .summary-value {
+      display: block;
+      color: var(--sap-midnight);
+      font-size: 1.55rem;
+      font-weight: 700;
+    }
+
+    .summary-label {
+      color: var(--sap-muted);
+      font-size: 0.82rem;
     }
 
     .issue-stack {
-      display: grid;
+      display: flex;
+      flex-direction: column;
       gap: 1rem;
     }
 
-    .coverage {
-      margin-top: 1.4rem;
-      padding: 1.25rem;
-      border: 1px solid var(--border);
+    .issue-card {
+      padding: 1.45rem;
+      border: 1px solid var(--sap-border);
       border-radius: 6px;
-      background: var(--surface);
+      background: var(--sap-surface);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .issue-card {
-      padding: 1.35rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--surface);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    .issue-card:hover {
+      border-color: var(--sap-blue);
+      box-shadow: 0 8px 24px rgba(0, 90, 158, 0.1);
     }
 
     .issue-header {
       display: flex;
       justify-content: space-between;
       gap: 1rem;
-      align-items: flex-start;
-      padding-bottom: 0.75rem;
-      margin-bottom: 0.9rem;
+      align-items: center;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.8rem;
       border-bottom: 1px solid #edf0f2;
     }
 
     .issue-meta {
-      color: var(--muted);
-      font-family: var(--mono);
+      color: var(--sap-muted);
+      font-family: var(--font-mono);
       font-size: 0.75rem;
     }
 
     .badge {
       flex: 0 0 auto;
-      padding: 0.18rem 0.5rem;
+      padding: 0.2rem 0.5rem;
       border-radius: 4px;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
     }
 
-    .critical {
-      border: 1px solid var(--error);
-      color: var(--error);
+    .badge-critical {
+      border: 1px solid var(--sap-error);
       background: #fff1f1;
+      color: var(--sap-error);
     }
 
-    .warning {
-      border: 1px solid var(--warning);
-      color: var(--warning);
+    .badge-warning {
+      border: 1px solid var(--sap-warning);
       background: #fff4e5;
+      color: var(--sap-warning);
     }
 
     h2 {
-      margin: 0 0 0.75rem;
-      color: var(--navy);
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: 0;
+      margin: 0 0 0.45rem;
+      color: var(--sap-midnight);
+      font-size: 1.22rem;
+      font-weight: 650;
     }
 
-    p {
-      margin: 0 0 0.75rem;
+    .description {
+      margin: 0 0 1rem;
+      color: var(--sap-text);
+    }
+
+    .action {
+      margin: 0 0 1rem;
+      color: var(--sap-midnight);
+      font-weight: 600;
     }
 
     code {
@@ -164,72 +193,71 @@
       border-radius: 4px;
       background: #eef4ff;
       color: #174ea6;
-      font-family: var(--mono);
+      font-family: var(--font-mono);
       font-size: 0.9em;
     }
 
     .code-label {
       display: block;
-      margin: 0.7rem 0 0.35rem;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 0.76rem;
-      overflow-wrap: anywhere;
+      margin-bottom: 0.35rem;
+      color: var(--sap-muted);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
     }
 
-    pre {
+    .code-block {
       margin: 0;
-      padding: 1rem;
-      overflow-x: auto;
-      border-radius: 5px;
+      border: 1px solid #1a1a1a;
+      border-radius: 4px;
       background: #2b3033;
       color: #f5f5f5;
-      font-family: var(--mono);
+      font-family: var(--font-mono);
       font-size: 0.82rem;
-      line-height: 1.55;
+      overflow-x: auto;
     }
 
-    .mark {
+    .code-inner {
+      display: block;
+      min-width: fit-content;
+      padding: 0.9rem 0;
+    }
+
+    .code-line {
+      display: block;
+      padding: 0 1.25rem;
+      white-space: pre;
+    }
+
+    .buggy-line {
+      border-left: 4px solid var(--sap-warning);
+      background: rgba(233, 115, 12, 0.16);
       color: #ffcc00;
       font-weight: 700;
     }
 
+    .ok-line {
+      color: #4cd964;
+      font-weight: 700;
+    }
+
     footer {
-      padding: 2rem 0 0;
-      color: var(--muted);
-      font-size: 0.85rem;
+      padding: 3rem 0 1rem;
+      color: var(--sap-muted);
       text-align: center;
+      font-size: 0.85rem;
     }
 
-    .file-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.35rem 1rem;
-      margin: 0.75rem 0 0;
-      padding: 0;
-      list-style: none;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 0.78rem;
-    }
-
-    .file-grid strong {
-      color: var(--navy);
-      font-family: var(--sans);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 720px) {
+    @media (max-width: 768px) {
       .container {
-        padding-top: 1rem;
+        padding: 1rem 0 2.5rem;
       }
 
       header {
-        padding: 1.35rem;
+        padding: 1.5rem;
       }
 
-      h1 {
-        font-size: 1.65rem;
+      .summary {
+        grid-template-columns: 1fr;
       }
 
       .issue-header {
@@ -237,193 +265,190 @@
       }
 
       .badge {
-        display: inline-block;
-        margin-top: 0.45rem;
         width: max-content;
-      }
-
-      .file-grid {
-        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <main class="container">
+  <div class="container">
     <header>
-      <span class="eyebrow">UAT_JBF2 // Store_And_Budget ล่าสุด 2026-05-28</span>
-      <h1>Budget Add-on: จุดที่ยังต้องแก้</h1>
-      <p>
-        ตรวจจากไฟล์ SQL ล่าสุดแบบ flat export ใน <code>references/Store_And_Budget</code>.
-        หน้าเว็บนี้สรุปเฉพาะ bug, risk และจุดที่ต้องให้ vendor ยืนยันจาก code ล่าสุด.
-      </p>
+      <span class="eyebrow">SAP Business One // UAT_JBF2 // Store_And_Budget ล่าสุด</span>
+      <h1>Budget Flow: จุดที่ยังต้องแก้</h1>
+      <p>สรุปจาก SQL reference ล่าสุดเท่านั้น ตัดรายการที่แก้ route แล้วออก เหลือเฉพาะ bug, risk และจุดที่ต้องให้ vendor ยืนยัน.</p>
     </header>
 
-    <div class="notice">
-      Expected ตามคู่มือ: <strong>Reserved = PR + PO</strong> และ
-      <strong>Actual = AP + CN + JE + OUTGOING + GI + GR</strong>
+    <div class="notice-box">
+      Expected: <span style="color: var(--sap-blue)">Reserved = PR + PO</span> |
+      <span style="color: var(--sap-warning)">Actual = AP + CN + JE + OUTGOING + GI + GR</span>
     </div>
 
-    <section class="issue-stack" aria-label="Budget add-on findings">
+    <section class="summary" aria-label="Summary">
+      <div class="summary-item">
+        <span class="summary-value">5</span>
+        <span class="summary-label">bug ที่ยังเห็นจาก code</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-value">2</span>
+        <span class="summary-label">risk ที่ต้องคุมก่อนตรวจซ้ำ</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-value">1</span>
+        <span class="summary-label">จุดที่ต้องให้ vendor ยืนยัน</span>
+      </div>
+    </section>
+
+    <main class="issue-stack" aria-label="Budget findings">
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">BUG_01 // PR_RESERVE_DISABLED</div>
-          <span class="badge critical">ยังผิด</span>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>1. PR Reserve ยังไม่ถูกเปิดใช้งานจริง</h2>
-        <p>
-          ตอนนี้มีไฟล์ <code>NDBS_BUDGET_PR.sql</code> แล้ว แต่ <code>SBO_SP_TransactionNotification</code> ยังไม่ส่ง object
-          <code>1470000113</code> เข้า budget flow และ <code>NDBS_BUDGET_CONTROL</code> ยัง comment call ไป PR ไว้.
-        </p>
-        <span class="code-label">File: SBO_SP_TransactionNotification</span>
-        <pre>IF :object_type In ('22','20','18','19','30','24','46','59','60') then</pre>
-        <span class="code-label">File: NDBS_BUDGET_CONTROL</span>
-        <pre><span class="mark">--if ( :object_type = '1470000113') then
---  Call NDBS_BUDGET_PR (...);</span></pre>
-        <p>
-          ผลกระทบ: ตามคู่มือ PR ต้องเป็น Reserved แต่ระบบยังไม่สร้าง movement ของ PR ผ่าน control path หลัก.
-        </p>
+        <h2>1. PR ยังไม่สร้างยอด Reserved</h2>
+        <p class="description">มี <code>NDBS_BUDGET_PR.sql</code> แล้ว แต่ budget flow หลักยังไม่เรียก PR.</p>
+        <p class="action">ควรแก้: เพิ่ม object <code>1470000113</code> ใน TN call list และเปิด call ไป <code>NDBS_BUDGET_PR</code>.</p>
+        <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line buggy-line">IF :object_type In ('22','20','18','19','30','24','46','59','60') then</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">--if ( :object_type = '1470000113') then</span>
+            <span class="code-line buggy-line">--  Call NDBS_BUDGET_PR (...);</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">BUG_02 // RETURN_NOT_TRIGGERED</div>
-          <span class="badge critical">ยังผิด</span>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>2. Goods Return object 21 มี procedure แต่ TransactionNotification ไม่เรียก</h2>
-        <p>
-          <code>NDBS_BUDGET_CONTROL</code> มี branch สำหรับ <code>object_type = '21'</code> แล้ว แต่ call list ใน
-          <code>SBO_SP_TransactionNotification</code> ไม่มี <code>21</code>. ดังนั้น Goods Return จะไม่เข้า budget flow จาก TransactionNotification.
-        </p>
-        <span class="code-label">File: SBO_SP_TransactionNotification</span>
-        <pre>IF :object_type In ('22','20','18','19','30','24','46','59','60') then</pre>
-        <span class="code-label">File: NDBS_BUDGET_CONTROL</span>
-        <pre>elseif ( :object_type = '21') then
-  Call NDBS_BUDGET_RETURN (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);</pre>
+        <h2>2. Goods Return object 21 ไม่เข้า budget flow</h2>
+        <p class="description">Control มี branch สำหรับ Return แล้ว แต่ TN ไม่ส่ง object <code>21</code> เข้าไป.</p>
+        <p class="action">ควรแก้: เพิ่ม <code>21</code> ใน call list ของ <code>SBO_SP_TransactionNotification</code>.</p>
+        <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line buggy-line">IF :object_type In ('22','20','18','19','30','24','46','59','60') then</span>
+            <span class="code-line"></span>
+            <span class="code-line ok-line">elseif ( :object_type = '21') then</span>
+            <span class="code-line ok-line">  Call NDBS_BUDGET_RETURN (...);</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_03 // OUTGOING_GI_GR_ROUTE</div>
-          <span class="badge critical">ยังผิด</span>
+          <div class="issue-meta">BUG_03 // ACTUAL_DISPATCH_MISSING</div>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>3. OUTGOING / GI / GR ยังเข้า control แต่ไม่มี dispatch</h2>
-        <p>
-          TransactionNotification ส่ง <code>24,46,59,60</code> เข้า <code>NDBS_BUDGET_CONTROL</code> แล้ว และ
-          <code>NDBS_BUDGET_JE</code> มี cursor อ่าน trans type เหล่านี้ แต่ control เรียก JE เฉพาะ <code>object_type = '30'</code>.
-        </p>
-        <span class="code-label">File: NDBS_BUDGET_JE</span>
-        <pre>Where (T0."Debit"-T0."Credit") &lt;&gt; 0
-  AND T0."TransType" IN( '30','46','24','59','60')
-  AND T0."TransId" = :datakey</pre>
-        <span class="code-label">File: NDBS_BUDGET_CONTROL</span>
-        <pre>elseif ( :object_type = '30') then
-  Call NDBS_BUDGET_JE (...);</pre>
+        <h2>3. OUTGOING / GI / GR เข้า TN แล้ว แต่ control ไม่ dispatch</h2>
+        <p class="description"><code>NDBS_BUDGET_JE</code> รองรับ <code>24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> เรียก JE เฉพาะ object <code>30</code>.</p>
+        <p class="action">ควรแก้: เพิ่ม dispatch สำหรับ <code>24,46,59,60</code> หรือปรับ branch JE ให้ครอบคลุม.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_JE.sql + NDBS_BUDGET_CONTROL.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line ok-line">AND T0."TransType" IN( '30','46','24','59','60')</span>
+            <span class="code-line"></span>
+            <span class="code-line buggy-line">elseif ( :object_type = '30') then</span>
+            <span class="code-line buggy-line">  Call NDBS_BUDGET_JE (...);</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">BUG_04 // APCN_CANCEL_LOGIC</div>
-          <span class="badge critical">ยังผิด</span>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>4. APCN Cancel ยังใช้เงื่อนไขที่จริงเสมอ</h2>
-        <p>
-          <code>NDBS_BUDGET_APCN</code> ยังมี <code>IF BCount &gt;= 0</code> ทั้งฝั่ง Department และ Project.
-          เงื่อนไขนี้ผ่านเสมอแม้ไม่พบ movement เดิม จึงเสี่ยง <code>no data found</code> หรือ reverse ผิดแถว.
-        </p>
-        <span class="code-label">File: NDBS_BUDGET_APCN</span>
-        <pre>Select Count(*) into BCount
-From "NDBS_BGC_OBPE"
-Where "PrimaryObjectType" = :BaseType
-  AND "PrimaryObjectID" = :BaseKey
-  AND "PrimaryObjectLine" = :BaseLine;
-<span class="mark">IF BCount &gt;= 0 then</span></pre>
+        <h2>4. APCN Cancel ใช้เงื่อนไขที่จริงเสมอ</h2>
+        <p class="description"><code>BCount >= 0</code> ผ่านเสมอ แม้ไม่พบ movement เดิม จึงเสี่ยง reverse ผิดหรือเจอ no data found.</p>
+        <p class="action">ควรแก้: เปลี่ยนเป็น <code>BCount > 0</code> และจัดการกรณีไม่พบข้อมูลให้ชัดเจน.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_APCN.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">Select Count(*) into BCount From "NDBS_BGC_OBPE" Where ...;</span>
+            <span class="code-line buggy-line">IF BCount >= 0 then</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">BUG_05 // AP_ACCOUNT_MAPPING</div>
-          <span class="badge critical">ยังผิด</span>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>5. AP account mapping ยังมีจุดใช้ FormatCode เทียบกับ AcctCode</h2>
-        <p>
-          ใน <code>NDBS_BUDGET_AP</code> ยังพบ pattern ผิดเดิม: ใช้ <code>U_FormatCode</code> ไปเทียบกับ
-          <code>T4."AcctCode"</code>. ถ้าข้อมูล setup เก็บ format code จริง จะทำให้หา budget group ไม่เจอ.
-        </p>
-        <span class="code-label">File: NDBS_BUDGET_AP</span>
-        <pre>Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
-<span class="mark">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span></pre>
+        <h2>5. AP mapping ใช้ FormatCode เทียบกับ AcctCode</h2>
+        <p class="description">ถ้า budget setup เก็บ <code>U_FormatCode</code> จริง จุดนี้จะหา budget group ไม่เจอ.</p>
+        <p class="action">ควรแก้: เทียบกับ <code>T4."FormatCode"</code> ให้ตรงกับ pattern ที่ถูกใน procedure อื่น.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"</span>
+            <span class="code-line buggy-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">RISK_01 // PO_RESERVE_FROM_PR</div>
-          <span class="badge warning">ต้องตรวจซ้ำ</span>
+          <span class="badge badge-warning">ต้องตรวจซ้ำ</span>
         </div>
-        <h2>6. PO Reserve จาก PR ยังต้องตรวจซ้ำ เพราะ PR reserve ยังไม่ active</h2>
-        <p>
-          <code>NDBS_BUDGET_PO</code> สร้าง movement <code>BudgetType = 'R'</code> ให้ PO แล้ว แต่เนื่องจาก PR reserve ยังไม่ถูกเปิด route
-          ผลรวม Reserved ใน flow <code>PR -> PO</code> ยังต้องตรวจซ้ำจากข้อมูลจริง โดยเฉพาะกรณี Project และกรณีแก้ไขเอกสารระหว่างทาง.
-        </p>
-        <span class="code-label">File: NDBS_BUDGET_PO</span>
-        <pre>INSERT INTO "NDBS_BGC_OBDE" (...)
-VALUES (...,'22',:DocKey,:DocLine,:BaseType,:BaseKey,:BaseLine,:BAmount,'R',...);</pre>
+        <h2>6. PO Reserve ต้องตรวจซ้ำหลังเปิด PR</h2>
+        <p class="description">PO มี logic รับฐานจาก PR แล้ว แต่เพราะ PR reserve ยังไม่ active ผลรวม Reserved ยังเชื่อไม่ได้.</p>
+        <p class="action">ควรทำ: แก้ PR ก่อน แล้วทดสอบ <code>PR -> PO</code> ทั้ง Department และ Project.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_PO.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">INSERT INTO "NDBS_BGC_OBDE" (...)</span>
+            <span class="code-line ok-line">VALUES (...,'22',:DocKey,:DocLine,:BaseType,:BaseKey,:BaseLine,:BAmount,'R',...);</span>
+            <span class="code-line ok-line">IF :BaseType IN ('-1','1470000113') then</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">RISK_02 // FULL_REFRESH</div>
-          <span class="badge warning">ความเสี่ยง</span>
+          <span class="badge badge-warning">performance</span>
         </div>
-        <h2>7. Full refresh หลัง transaction ยังเป็นความเสี่ยง performance</h2>
-        <p>
-          <code>NDBS_UpdateAllBudgetAmount</code> เป็น set-based rewrite แล้ว แต่ <code>NDBS_BUDGET_CONTROL</code> ยังเรียก full refresh ทุกครั้งหลัง transaction สำเร็จ.
-        </p>
-        <span class="code-label">File: NDBS_BUDGET_CONTROL</span>
-        <pre>if (error = 0) then
-  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
-  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
-  call NDBS_UpdateAllBudgetAmount;
-end if;</pre>
+        <h2>7. Full refresh ถูกเรียกทุก transaction</h2>
+        <p class="description"><code>NDBS_UpdateAllBudgetAmount</code> เป็น set-based แล้ว แต่การเรียกทุกครั้งยังเสี่ยงช้าเมื่อข้อมูลเยอะ.</p>
+        <p class="action">ควรทำ: ยืนยัน performance บน UAT และพิจารณา refresh เฉพาะ budget key ที่กระทบ.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">if (error = 0) then</span>
+            <span class="code-line">  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;</span>
+            <span class="code-line">  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;</span>
+            <span class="code-line buggy-line">  call NDBS_UpdateAllBudgetAmount;</span>
+            <span class="code-line">end if;</span>
+          </div>
+        </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
           <div class="issue-meta">CHECK_01 // LEGACY_NOTIFICATION_UNUSED</div>
-          <span class="badge warning">ต้องยืนยัน</span>
+          <span class="badge badge-warning">ต้องยืนยัน</span>
         </div>
-        <h2>8. NDBS_BudgetNotification มีอยู่ แต่ไม่มี caller ในชุดล่าสุด</h2>
-        <p>
-          ไฟล์ <code>NDBS_BudgetNotification.sql</code> ยังมี logic หลาย object รวมถึง PR และ Return แต่ค้นทั้งชุดแล้วไม่พบว่า
-          <code>SBO_SP_TransactionNotification</code> หรือ procedure อื่นเรียกใช้งาน. ถ้า vendor ตั้งใจย้ายไปใช้
-          <code>NDBS_BUDGET_CONTROL</code> ทั้งหมด จุดนี้ไม่ใช่ bug; แต่ควรให้ vendor ยืนยันว่าเป็น legacy ที่เลิกใช้แล้ว.
-        </p>
-        <span class="code-label">File: NDBS_BudgetNotification</span>
-        <pre>CREATE PROCEDURE NDBS_BudgetNotification</pre>
-        <span class="code-label">Caller check</span>
-        <pre>ไม่พบ call NDBS_BudgetNotification ใน SQL ชุดล่าสุด</pre>
+        <h2>8. NDBS_BudgetNotification ยังอยู่ แต่ไม่พบ caller</h2>
+        <p class="description">procedure นี้มี logic หลาย object รวมถึง PR/Return แต่ค้นทั้งชุดแล้วไม่พบการ call จาก procedure อื่น.</p>
+        <p class="action">ควรให้ vendor ยืนยัน: เป็น legacy ที่เลิกใช้แล้ว หรือยังต้องผูกกลับเข้าระบบ.</p>
+        <span class="code-label">ไฟล์: NDBS_BudgetNotification.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">CREATE PROCEDURE NDBS_BudgetNotification</span>
+            <span class="code-line buggy-line">-- ไม่พบ call NDBS_BudgetNotification ใน SQL ชุดล่าสุด</span>
+          </div>
+        </div>
       </article>
-    </section>
-
-    <section class="coverage" aria-label="Files checked">
-      <h2>ไฟล์ที่ตรวจใน Store_And_Budget ล่าสุด</h2>
-      <p>
-        ตรวจครบทุกไฟล์ SQL ใน folder ล่าสุดแล้ว. ไฟล์ที่เป็น bug หลักอยู่ที่ route/control และ procedure ของเอกสาร;
-        ไฟล์ update amount ถูกจัดเป็นความเสี่ยง performance เพราะยังถูกเรียก full refresh.
-      </p>
-      <ul class="file-grid">
-        <li><strong>Control:</strong> NDBS_BUDGET_CONTROL</li>
-        <li><strong>TN:</strong> SBO_SP_TransactionNotification</li>
-        <li><strong>Reserve:</strong> NDBS_BUDGET_PR, NDBS_BUDGET_PO</li>
-        <li><strong>Actual:</strong> NDBS_BUDGET_AP, NDBS_BUDGET_APCN, NDBS_BUDGET_GRPO, NDBS_BUDGET_RETURN, NDBS_BUDGET_JE</li>
-        <li><strong>Refresh:</strong> NDBS_UpdateAllBudgetAmount, NDBS_UpdateBudgetAmount</li>
-        <li><strong>Batch/Legacy:</strong> NDBS_BUDGET_BEGINING, NDBS_BudgetNotification</li>
-      </ul>
-    </section>
+    </main>
 
     <footer>
-      ตรวจล่าสุดจาก SQL flat export ใน references/Store_And_Budget
+      ตรวจจาก references/Store_And_Budget ล่าสุด // แสดงเฉพาะรายการที่ยังต้องแก้หรือยืนยัน
     </footer>
-  </main>
+  </div>
 </body>
 </html>
