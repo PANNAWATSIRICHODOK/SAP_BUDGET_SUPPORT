@@ -87,6 +87,13 @@
       font-weight: 600;
     }
 
+    .manual-source {
+      margin-top: 0.45rem;
+      color: var(--sap-muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
     .summary {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -188,6 +195,18 @@
       font-weight: 600;
     }
 
+    .manual-note {
+      margin: -0.35rem 0 1rem;
+      padding-left: 0.7rem;
+      border-left: 3px solid var(--sap-gold);
+      color: var(--sap-muted);
+      font-size: 0.9rem;
+    }
+
+    .manual-note strong {
+      color: var(--sap-midnight);
+    }
+
     code {
       padding: 0.08rem 0.28rem;
       border-radius: 4px;
@@ -275,12 +294,15 @@
     <header>
       <span class="eyebrow">SAP Business One // UAT_JBF2 // Store_And_Budget ล่าสุด</span>
       <h1>Budget Flow: จุดที่ยังต้องแก้</h1>
-      <p>สรุปจาก SQL reference ล่าสุดเท่านั้น ตัดรายการที่แก้ route แล้วออก เหลือเฉพาะ bug, risk และจุดที่ต้องให้ vendor ยืนยัน.</p>
+      <p>สรุปจาก SQL reference ล่าสุดและเทียบกับ BIC Budget User Manual แล้ว ตัดรายการที่แก้ route แล้วออก เหลือเฉพาะ bug, risk และจุดที่ต้องให้ vendor ยืนยัน.</p>
     </header>
 
     <div class="notice-box">
       Expected: <span style="color: var(--sap-blue)">Reserved = PR + PO</span> |
       <span style="color: var(--sap-warning)">Actual = AP + CN + JE + OUTGOING + GI + GR</span>
+      <div class="manual-source">
+        อ้างอิงคู่มือ: Setup Budget Department / Setup Budget Project ระบุสูตร Reserved, Actual, Balance และ Remaining เหมือนกันทั้ง Department และ Project.
+      </div>
     </div>
 
     <section class="summary" aria-label="Summary">
@@ -306,6 +328,7 @@
         </div>
         <h2>1. PR ยังไม่สร้างยอด Reserved</h2>
         <p class="description">มี <code>NDBS_BUDGET_PR.sql</code> แล้ว แต่ budget flow หลักยังไม่เรียก PR.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Reserved ต้องรวม PR + PO ดังนั้น PR ไม่เข้า flow คือขัดกับสูตรคู่มือโดยตรง.</p>
         <p class="action">ควรแก้: เพิ่ม object <code>1470000113</code> ใน TN call list และเปิด call ไป <code>NDBS_BUDGET_PR</code>.</p>
         <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
@@ -325,6 +348,7 @@
         </div>
         <h2>2. Goods Return object 21 ไม่เข้า budget flow</h2>
         <p class="description">Control มี branch สำหรับ Return แล้ว แต่ TN ไม่ส่ง object <code>21</code> เข้าไป.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือไม่ได้แยก Return ชัดเจน แต่ SQL ล่าสุดมี <code>NDBS_BUDGET_RETURN</code> และ control branch อยู่แล้ว จึงเป็น mismatch ที่ต้องให้ vendor ยืนยัน scope.</p>
         <p class="action">ควรแก้: เพิ่ม <code>21</code> ใน call list ของ <code>SBO_SP_TransactionNotification</code>.</p>
         <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
@@ -344,6 +368,7 @@
         </div>
         <h2>3. OUTGOING / GI / GR เข้า TN แล้ว แต่ control ไม่ dispatch</h2>
         <p class="description"><code>NDBS_BUDGET_JE</code> รองรับ <code>24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> เรียก JE เฉพาะ object <code>30</code>.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม OUTGOING + GI + GR ดังนั้น object เหล่านี้ต้องสร้าง movement ได้จริง.</p>
         <p class="action">ควรแก้: เพิ่ม dispatch สำหรับ <code>24,46,59,60</code> หรือปรับ branch JE ให้ครอบคลุม.</p>
         <span class="code-label">ไฟล์: NDBS_BUDGET_JE.sql + NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
@@ -363,6 +388,7 @@
         </div>
         <h2>4. APCN Cancel ใช้เงื่อนไขที่จริงเสมอ</h2>
         <p class="description"><code>BCount >= 0</code> ผ่านเสมอ แม้ไม่พบ movement เดิม จึงเสี่ยง reverse ผิดหรือเจอ no data found.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม CN; การ cancel/reverse ของ CN ต้องจับ movement เดิมให้ถูก ไม่ใช่ผ่านเงื่อนไขเสมอ.</p>
         <p class="action">ควรแก้: เปลี่ยนเป็น <code>BCount > 0</code> และจัดการกรณีไม่พบข้อมูลให้ชัดเจน.</p>
         <span class="code-label">ไฟล์: NDBS_BUDGET_APCN.sql</span>
         <div class="code-block">
@@ -380,6 +406,7 @@
         </div>
         <h2>5. AP mapping ใช้ FormatCode เทียบกับ AcctCode</h2>
         <p class="description">ถ้า budget setup เก็บ <code>U_FormatCode</code> จริง จุดนี้จะหา budget group ไม่เจอ.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือให้ตั้ง COA และ Budget Group เป็นฐานควบคุมงบ; join account ผิดทำให้เอกสาร AP หา budget group ไม่ถูก.</p>
         <p class="action">ควรแก้: เทียบกับ <code>T4."FormatCode"</code> ให้ตรงกับ pattern ที่ถูกใน procedure อื่น.</p>
         <span class="code-label">ไฟล์: NDBS_BUDGET_AP.sql</span>
         <div class="code-block">
@@ -397,6 +424,7 @@
         </div>
         <h2>6. PO Reserve ต้องตรวจซ้ำหลังเปิด PR</h2>
         <p class="description">PO มี logic รับฐานจาก PR แล้ว แต่เพราะ PR reserve ยังไม่ active ผลรวม Reserved ยังเชื่อไม่ได้.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Reserved = PR + PO ดังนั้น flow <code>PR -> PO</code> ต้องไม่ทำให้ยอดจองหายหรือซ้ำ.</p>
         <p class="action">ควรทำ: แก้ PR ก่อน แล้วทดสอบ <code>PR -> PO</code> ทั้ง Department และ Project.</p>
         <span class="code-label">ไฟล์: NDBS_BUDGET_PO.sql</span>
         <div class="code-block">
@@ -415,6 +443,7 @@
         </div>
         <h2>7. Full refresh ถูกเรียกทุก transaction</h2>
         <p class="description"><code>NDBS_UpdateAllBudgetAmount</code> เป็น set-based แล้ว แต่การเรียกทุกครั้งยังเสี่ยงช้าเมื่อข้อมูลเยอะ.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Balance และ Remaining ของ Budget Department/Project อ้างอิงยอด Reserved + Actual; refresh ที่ช้าหรือผิดจะกระทบหน้าจอตรวจสอบงบ.</p>
         <p class="action">ควรทำ: ยืนยัน performance บน UAT และพิจารณา refresh เฉพาะ budget key ที่กระทบ.</p>
         <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
@@ -435,6 +464,7 @@
         </div>
         <h2>8. NDBS_BudgetNotification ยังอยู่ แต่ไม่พบ caller</h2>
         <p class="description">procedure นี้มี logic หลาย object รวมถึง PR/Return แต่ค้นทั้งชุดแล้วไม่พบการ call จาก procedure อื่น.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> ไม่ใช่ requirement ที่คู่มือระบุชื่อ procedure แต่เป็นความเสี่ยงด้าน implementation ว่ามี logic เก่าค้างหรือหลุดจาก flow.</p>
         <p class="action">ควรให้ vendor ยืนยัน: เป็น legacy ที่เลิกใช้แล้ว หรือยังต้องผูกกลับเข้าระบบ.</p>
         <span class="code-label">ไฟล์: NDBS_BudgetNotification.sql</span>
         <div class="code-block">
@@ -447,7 +477,7 @@
     </main>
 
     <footer>
-      ตรวจจาก references/Store_And_Budget ล่าสุด // แสดงเฉพาะรายการที่ยังต้องแก้หรือยืนยัน
+      ตรวจจาก references/Store_And_Budget ล่าสุด + references/BIC_budget User Manual.docx // แสดงเฉพาะรายการที่ยังต้องแก้หรือยืนยัน
     </footer>
   </div>
 </body>
