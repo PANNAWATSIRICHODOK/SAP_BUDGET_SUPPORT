@@ -8,98 +8,114 @@ CREATE PROCEDURE NDBS_UpdateBudgetAmount
 LANGUAGE SQLSCRIPT
 AS
 begin
-	
+
 	Declare NetReserve DECIMAL(19, 2);
 	Declare NetActual DECIMAL(19, 2);
-	Declare cursor loopbudgetdept for Select * From "@NDBS_BGC_BDPL" Where "U_BudgetRem" IS NULL;
-	Declare cursor loopbudgetproj  for Select * From "@NDBS_BGC_BPJL" Where "U_BudgetRem" IS NULL;
-	If :budgettype = 'D' Then 
-		Select SUM(IFNULL("Amount",0)) INTO NetReserve
+
+	If :budgettype = 'D' Then
+		Select
+			IFNULL(SUM(CASE WHEN "BudgetType" = 'R' THEN IFNULL("Amount",0) ELSE 0 END),0),
+			IFNULL(SUM(CASE WHEN "BudgetType" = 'A' THEN IFNULL("Amount",0) ELSE 0 END),0)
+		INTO NetReserve, NetActual
 		From "NDBS_BGC_OBDE"
-		WHERE "Department" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear 
-		AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
-		
-		Select SUM(IFNULL("Amount",0)) INTO NetActual
-		From "NDBS_BGC_OBDE"
-		WHERE "Department" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear 
-		AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';
-		IF NetActual IS NULL Then
-			NetActual = 0;
-		End if;
-		IF NetReserve IS NULL Then
-			NetReserve = 0;
-		End if;
-		Update "@NDBS_BGC_BDPL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
-				"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
-				"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
-		WHERE "Code" = :budgetyear AND "U_GroupCode" = :budgetgroup AND "U_Department" = :budgettypecode;
+		WHERE "Department" = :budgettypecode
+		  AND "BudgetGroup" = :budgetgroup
+		  AND "BudgetYear" = :budgetyear
+		  AND "BudgetStatus" <> 'C';
+
+		Update "@NDBS_BGC_BDPL" Set
+			"U_BudgetRes" = IFNULL(:NetReserve,0),
+			"U_BudgetAct" = IFNULL(:NetActual,0),
+			"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
+			"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
+		WHERE "Code" = :budgetyear
+		  AND "U_GroupCode" = :budgetgroup
+		  AND "U_Department" = :budgettypecode;
 	else
-		Select SUM(IFNULL("Amount",0)) INTO NetReserve
+		Select
+			IFNULL(SUM(CASE WHEN "BudgetType" = 'R' THEN IFNULL("Amount",0) ELSE 0 END),0),
+			IFNULL(SUM(CASE WHEN "BudgetType" = 'A' THEN IFNULL("Amount",0) ELSE 0 END),0)
+		INTO NetReserve, NetActual
 		From "NDBS_BGC_OBPE"
-		WHERE "Project" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear 
-		AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
-		
-		Select SUM(IFNULL("Amount",0)) INTO NetActual
-		From "NDBS_BGC_OBPE"
-		WHERE "Project" = :budgettypecode AND "BudgetGroup" = :budgetgroup AND "BudgetYear" = :budgetyear 
-		AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';
-		IF NetActual IS NULL Then
-			NetActual = 0;
-		End if;
-		IF NetReserve IS NULL Then
-			NetReserve = 0;
-		End if;
-		Update "@NDBS_BGC_BPJL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
-				"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
-				"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
-		WHERE "Code" = :budgetyear AND "U_GroupCode" = :budgetgroup AND "U_Project" = :budgettypecode;
+		WHERE "Project" = :budgettypecode
+		  AND "BudgetGroup" = :budgetgroup
+		  AND "BudgetYear" = :budgetyear
+		  AND "BudgetStatus" <> 'C';
+
+		Update "@NDBS_BGC_BPJL" Set
+			"U_BudgetRes" = IFNULL(:NetReserve,0),
+			"U_BudgetAct" = IFNULL(:NetActual,0),
+			"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
+			"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
+		WHERE "Code" = :budgetyear
+		  AND "U_GroupCode" = :budgetgroup
+		  AND "U_Project" = :budgettypecode;
 	end if;
-	
-	for currloop as loopbudgetdept do
-		Select SUM(IFNULL("Amount",0)) INTO NetReserve
-		From "NDBS_BGC_OBDE"
-		WHERE "Department" = currloop."U_Department" AND "BudgetGroup" = currloop."U_GroupCode" 
-		AND "BudgetYear" = currloop."Code" 
-		AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
-		
-		Select SUM(IFNULL("Amount",0)) INTO NetActual
-		From "NDBS_BGC_OBDE"
-		WHERE "Department" = currloop."U_Department" AND "BudgetGroup" = currloop."U_GroupCode" 
-		AND "BudgetYear" = currloop."Code" 
-		AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';
-		IF NetActual IS NULL Then
-			NetActual = 0;
-		End if;
-		IF NetReserve IS NULL Then
-			NetReserve = 0;
-		End if;
-		
-		Update "@NDBS_BGC_BDPL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
-				"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
-				"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
-		WHERE "Code" = currloop."Code"  AND "U_GroupCode" = currloop."U_GroupCode"  AND "U_Department" = currloop."U_Department";
-	end for;
-	for currloop as loopbudgetproj do
-		Select SUM(IFNULL("Amount",0)) INTO NetReserve
-		From "NDBS_BGC_OBPE"
-		WHERE "Project" = currloop."U_Project" AND "BudgetGroup" = currloop."U_GroupCode" 
-		AND "BudgetYear" = currloop."Code" 
-		AND "BudgetType" = 'R' AND "BudgetStatus" <> 'C';
-		
-		Select SUM(IFNULL("Amount",0)) INTO NetActual
-		From "NDBS_BGC_OBPE"
-		WHERE "Project" = currloop."U_Project" AND "BudgetGroup" = currloop."U_GroupCode" 
-		AND "BudgetYear" = currloop."Code" 
-		AND "BudgetType" = 'A' AND "BudgetStatus" <> 'C';
-		IF NetActual IS NULL Then
-			NetActual = 0;
-		End if;
-		IF NetReserve IS NULL Then
-			NetReserve = 0;
-		End if;
-		Update "@NDBS_BGC_BPJL" Set "U_BudgetRes" = IFNULL(:NetReserve,0), "U_BudgetAct" = IFNULL(:NetActual,0),
-				"U_BudgetBal" = IFNULL(:NetReserve,0)+IFNULL(:NetActual,0),
-				"U_BudgetRem" = IFNULL("U_BudgetAmt",0) - (IFNULL(:NetReserve,0)+IFNULL(:NetActual,0))
-		WHERE "Code" = currloop."Code" AND "U_GroupCode" = currloop."U_GroupCode" AND "U_Project" = currloop."U_Project";	
-	end for;
+
+	-- Repair budget rows with null remaining amount in bulk instead of row-by-row cursor loops.
+	UPDATE "@NDBS_BGC_BDPL" T SET
+		T."U_BudgetRes" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetType" = 'R' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBDE" D
+			WHERE D."Department" = T."U_Department"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+			  AND D."BudgetStatus" <> 'C'
+		),0),
+		T."U_BudgetAct" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetType" = 'A' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBDE" D
+			WHERE D."Department" = T."U_Department"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+			  AND D."BudgetStatus" <> 'C'
+		),0),
+		T."U_BudgetBal" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetStatus" <> 'C' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBDE" D
+			WHERE D."Department" = T."U_Department"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+		),0),
+		T."U_BudgetRem" = IFNULL(T."U_BudgetAmt",0) - IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetStatus" <> 'C' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBDE" D
+			WHERE D."Department" = T."U_Department"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+		),0)
+	WHERE T."U_BudgetRem" IS NULL;
+
+	UPDATE "@NDBS_BGC_BPJL" T SET
+		T."U_BudgetRes" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetType" = 'R' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBPE" D
+			WHERE D."Project" = T."U_Project"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+			  AND D."BudgetStatus" <> 'C'
+		),0),
+		T."U_BudgetAct" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetType" = 'A' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBPE" D
+			WHERE D."Project" = T."U_Project"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+			  AND D."BudgetStatus" <> 'C'
+		),0),
+		T."U_BudgetBal" = IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetStatus" <> 'C' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBPE" D
+			WHERE D."Project" = T."U_Project"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+		),0),
+		T."U_BudgetRem" = IFNULL(T."U_BudgetAmt",0) - IFNULL((
+			SELECT SUM(CASE WHEN D."BudgetStatus" <> 'C' THEN IFNULL(D."Amount",0) ELSE 0 END)
+			FROM "NDBS_BGC_OBPE" D
+			WHERE D."Project" = T."U_Project"
+			  AND D."BudgetGroup" = T."U_GroupCode"
+			  AND D."BudgetYear" = T."Code"
+		),0)
+	WHERE T."U_BudgetRem" IS NULL;
 end;

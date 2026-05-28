@@ -11,6 +11,7 @@ CREATE PROCEDURE NDBS_BUDGET_CONTROL
 LANGUAGE SQLSCRIPT
 AS
 cnt int;
+cnt1 int;
 begin
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -22,12 +23,14 @@ begin
 -- 100863 PR Budgetyear =''
 IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-	SELECT count(t0."DocEntry") Into cnt
+	SELECT
+		IFNULL(SUM(CASE WHEN IFNULL(t1."OcrCode",'') = '' THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE WHEN IFNULL(t1."U_NDBS_BudgetYear",0) = 0 THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from OPRQ t0
 	left join PRQ1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
 	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
 	and IFNULL(I1."InvntItem",'N')='N'
 	and t0."DocEntry" = :list_of_cols_val_tab_del;
 
@@ -37,19 +40,8 @@ IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type 
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
-IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-	SELECT count(t0."DocEntry") Into cnt
-	from OPRQ t0
-	left join PRQ1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	where 1 = 1
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 701;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
@@ -61,12 +53,15 @@ End If;
 -- 100863 PO Budgetyear =''
 IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-	SELECT count(t0."DocEntry") Into cnt
+	SELECT
+		IFNULL(SUM(CASE WHEN IFNULL(t1."OcrCode",'') = '' THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE WHEN IFNULL(t1."U_NDBS_BudgetYear",0) = 0 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y' THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from OPOR t0
 	left join POR1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
+	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
 	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
 	and IFNULL(I1."InvntItem",'N')='N'
 
 	and t0."DocEntry" = :list_of_cols_val_tab_del;
@@ -77,22 +72,8 @@ IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') T
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
--- 100863 PO Budgetyear =''
-IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-	SELECT count(t0."DocEntry") Into cnt
-	from OPOR t0
-	left join POR1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-	where 1 = 1
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 703;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
@@ -173,19 +154,26 @@ End If;
 -- 100863 Draft Budgetyear =''
 IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-
-	select count(t0."DocEntry") into cnt
+	SELECT
+		IFNULL(SUM(CASE
+			WHEN T0."ObjType" IN ('1470000049','22')
+			 AND IFNULL(t1."OcrCode",'') = ''
+			 AND IFNULL(I1."InvntItem",'N') = 'N'
+			 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y'
+			THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE
+			WHEN T0."ObjType" IN ('1470000049','22','18','19')
+			 AND IFNULL(t1."U_NDBS_BudgetYear",0) = 0
+			 AND IFNULL(I1."InvntItem",'N') = 'N'
+			 AND T0."CANCELED" = 'N'
+			 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y'
+			THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from ODRF t0
 	left join DRF1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
 	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-
-	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
-	and T0."ObjType" IN ('1470000049','22')
-	and IFNULL(I1."InvntItem",'N')='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
+	where t0."DocEntry" = :list_of_cols_val_tab_del;
 
 	If :cnt > 0 Then
 
@@ -193,25 +181,8 @@ IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') 
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
--- 100863 Draft Budgetyear =''
-IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-
-	select count(t0."DocEntry") into cnt
-	from ODRF t0
-	left join DRF1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-	where 1 = 1
-	and T0."ObjType" IN ('1470000049','22','18','19')
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and T0."CANCELED" ='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 708;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';

@@ -19,9 +19,6 @@ cnt2 int;
 begin
 
 Declare mesg NVARCHAR (100);
-Declare CntReciept INTEGER DEFAULT 0;
-Declare CntIssue INTEGER DEFAULT 0;
-
 error := 0;
 error_message := N'Ok';
 
@@ -33,25 +30,44 @@ error_message := N'Ok';
  -- ::Block postdate more than CurrentDate :: -- Create On: 12 Feb'18
  --++================================================================++
 
-select count(*) into CntReciept from OIGN
-			Where "DocEntry" = ( Select Distinct "DocEntry" From IGN1 Where TO_NVARCHAR("DocEntry") = :list_of_cols_val_tab_del And "BaseType" = '202' )
-					And  DAYS_BETWEEN(TO_DATE(CURRENT_DATE),TO_DATE("DocDate")) > 0;
-
-select count(*) into CntIssue from  OIGE Where "DocEntry" = ( Select Distinct "DocEntry" From IGE1 Where TO_NVARCHAR("DocEntry") = :list_of_cols_val_tab_del And "BaseType" = '202' )
-						And  DAYS_BETWEEN(TO_DATE(CURRENT_DATE),TO_DATE("DocDate")) > 0;
-
  -- ::>> Reciept from production
-IF :object_type = '59' And (:transaction_type = 'A' OR :transaction_type = 'U') And :CntReciept > 0
+IF :object_type = '59' And (:transaction_type = 'A' OR :transaction_type = 'U')
 then
-	error := 100;
-	error_message := N'ISS Posting Date เกินวันปัจจุบัน';
+	SELECT COUNT(*) INTO cnt
+	FROM OIGN T0
+	WHERE T0."DocEntry" = :list_of_cols_val_tab_del
+	  AND T0."DocDate" > CURRENT_DATE
+	  AND EXISTS (
+	      SELECT 1
+	      FROM IGN1 T1
+	      WHERE T1."DocEntry" = T0."DocEntry"
+	        AND T1."BaseType" = '202'
+	  );
+
+	If :cnt > 0 Then
+		error := 100;
+		error_message := N'ISS Posting Date เกินวันปัจจุบัน';
+	End If;
 End If;
 
 -- ::>> Issue from production
-IF :object_type = '60' And (:transaction_type = 'A' OR :transaction_type = 'U') And :CntIssue > 0
+IF :object_type = '60' And (:transaction_type = 'A' OR :transaction_type = 'U')
 Then
-	error := 100;
-	error_message := N'ISS Posting Date เกินวันปัจจุบัน';
+	SELECT COUNT(*) INTO cnt
+	FROM OIGE T0
+	WHERE T0."DocEntry" = :list_of_cols_val_tab_del
+	  AND T0."DocDate" > CURRENT_DATE
+	  AND EXISTS (
+	      SELECT 1
+	      FROM IGE1 T1
+	      WHERE T1."DocEntry" = T0."DocEntry"
+	        AND T1."BaseType" = '202'
+	  );
+
+	If :cnt > 0 Then
+		error := 100;
+		error_message := N'ISS Posting Date เกินวันปัจจุบัน';
+	End If;
 End If;
 
 -- ห้ามยกเลิกเอกสาร Produciton order เมื่อมีการรับสินค้าแล้ว
@@ -235,9 +251,8 @@ IF :object_type = '20' And :transaction_type = 'A' THEN
 		LEFT JOIN OITM I1 ON I1."ItemCode"  = T1."ItemCode"
 		LEFT JOIN OITB I2 ON I2."ItmsGrpCod" = I1."ItmsGrpCod"
 		WHERE T2.CANCELED = 'N'
-			AND TO_NVARCHAR(T2."DocEntry") = :list_of_cols_val_tab_del
+			AND T2."DocEntry" = :list_of_cols_val_tab_del
 		GROUP BY T1."BaseType" ,T1."BaseEntry" ,T1."ItemCode" ,I2."ItmsGrpNam"
-		ORDER BY T1."BaseType" ,T1."BaseEntry"
 	) V2 ON V2."BaseType" = V1."ObjType" AND V2."BaseEntry" = V1."DocEntry" AND V2."ItemCode" = V1."ItemCode"
 	) Z
 	WHERE Z."CheckLimit" < 0 ;
@@ -395,28 +410,29 @@ End If;
 IF :object_type = '59' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
     ---- กลุ่ม FG* บังคับเลือกคลังตามที่ระบุไว้เท่านั้น เช่น QC,QA
-    SELECT  COUNT(Z."DocNum") into cnt
-	FROM
-	(
-	SELECT a1."DocNum", b."ItmsGrpNam" ,a2."WhsCode" ,w."U_WhsCode"
-	,(CASE WHEN (SELECT "Code" FROM "@BIC_RFPWHLINE" p1 WHERE "Code" = b."ItmsGrpNam" AND  p1."U_WhsCode" IN (a2."WhsCode")) IS NULL
-	       THEN 'NO'
-	       ELSE 'YES'
-	       END ) AS "CC"
+    SELECT COUNT(*) into cnt
 	FROM OIGN a1
 	JOIN IGN1 a2 ON a1."DocEntry"  = a2."DocEntry"
 	LEFT JOIN OITM a ON a."ItemCode"  = a2."ItemCode"
 	LEFT JOIN OITB b ON b."ItmsGrpCod"  = a."ItmsGrpCod"
 	LEFT JOIN OWOR p ON p."DocNum"  = a2."BaseRef"
-	INNER JOIN "@BIC_RFPWHLINE" w ON w."Code"  = b."ItmsGrpNam"
 	WHERE 0=0
 	--AND b."ItmsGrpNam" LIKE 'FG%'
 	AND a2."BaseType" = '202'
 	AND p."Type" ='S'
 	AND a1."DocEntry" = :list_of_cols_val_tab_del
 	AND p."ItemCode" = a2."ItemCode"
-	)Z
-	WHERE Z."CC" = 'NO';
+	AND EXISTS (
+		SELECT 1
+		FROM "@BIC_RFPWHLINE" w
+		WHERE w."Code" = b."ItmsGrpNam"
+	)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM "@BIC_RFPWHLINE" p1
+		WHERE p1."Code" = b."ItmsGrpNam"
+		  AND p1."U_WhsCode" = a2."WhsCode"
+	);
 
     If :cnt > 0 Then
         error := 100;
@@ -431,21 +447,14 @@ End If;
 -- ::>> BIC014  Purchase Request  บังคับเลือก Department (ใช้ทั้ง 4 บริษัท) Start
 IF :object_type = '1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') THEN
 
-    -- เช็คว่าเลือก Department หรือไม่
-    SELECT COUNT(T1."DocEntry") into cnt
-    FROM OPRQ T1
-    WHERE T1."DocEntry" = :list_of_cols_val_tab_del
-    AND T1."Department" > 0
-    AND T1."Department" IS NOT NULL   ;
-
-    -- เช็คว่าเลือก department ที่ยกเลิกไปแล้วหรือไม่ (C)
-    SELECT COUNT(T1."DocEntry") into cnt1
+    -- เช็ค Department และสถานะ Department ใน scan เดียว
+    SELECT
+        IFNULL(SUM(CASE WHEN IFNULL(T1."Department",0) > 0 THEN 1 ELSE 0 END),0),
+        IFNULL(SUM(CASE WHEN IFNULL(T1."Department",0) > 0 AND T2."Name" LIKE '%(C)%' THEN 1 ELSE 0 END),0)
+    INTO cnt, cnt1
     FROM OPRQ T1
     LEFT JOIN OUDP T2 ON T2."Code" = T1."Department"
-    WHERE T1."DocEntry" = :list_of_cols_val_tab_del
-    AND T1."Department" > 0
-    AND T1."Department" IS NOT NULL
-    AND T2."Name" LIKE'%(C)%' ;
+    WHERE T1."DocEntry" = :list_of_cols_val_tab_del;
 
     If :cnt = 0 Then
         error := 100;
@@ -463,8 +472,12 @@ END IF;
 -- ::>>BIC015 BIC  Purchase Order  เช็ค Department/Budget Year/Project PR vs PO (เฉพาะรายการที่อ้างอิง PR) Start
 IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') THEN
 
-    -- เช็คฝ่ายของ PO ที่อ้างอิง PR
-    SELECT COUNT(P0."DocEntry") INTO cnt
+    -- เช็ค PO ที่อ้างอิง PR ใน scan เดียว แล้วแยกข้อความตาม field ที่ไม่ตรงกัน
+    SELECT
+        IFNULL(SUM(CASE WHEN IFNULL(R1."OcrCode",'') <> IFNULL(P1."OcrCode",'') THEN 1 ELSE 0 END),0),
+        IFNULL(SUM(CASE WHEN IFNULL(R1."U_NDBS_BudgetYear",0) <> IFNULL(P1."U_NDBS_BudgetYear",0) THEN 1 ELSE 0 END),0),
+        IFNULL(SUM(CASE WHEN IFNULL(R1."Project",'') <> IFNULL(P1."Project",'') THEN 1 ELSE 0 END),0)
+    INTO cnt, cnt1, cnt2
     FROM OPOR P0
     JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
     LEFT JOIN PRQ1 R1
@@ -476,52 +489,15 @@ IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') 
     WHERE P0."DocEntry" = :list_of_cols_val_tab_del
       AND P1."BaseType" = 1470000113              -- PR
       AND I0."InvntItem" = 'N'
-      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND IFNULL(R1."OcrCode",'') <> IFNULL(P1."OcrCode",'');
+      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%');
 
     IF :cnt > 0 THEN
         error := 100;
         error_message := 'BIC ฝ่ายของ PR และ PO ไม่ตรงกัน';
-    END IF;
-
-    -- เช็คปีงบประมาณของ PO ที่อ้างอิง PR
-    SELECT COUNT(P0."DocEntry") INTO cnt
-    FROM OPOR P0
-    JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
-    LEFT JOIN PRQ1 R1
-        ON  R1."ObjType"  = P1."BaseType"
-        AND R1."DocEntry" = P1."BaseEntry"
-        AND R1."LineNum"  = P1."BaseLine"
-    JOIN OITM I0 ON I0."ItemCode" = P1."ItemCode"
-    JOIN OITB G0 ON G0."ItmsGrpCod" = I0."ItmsGrpCod"
-    WHERE P0."DocEntry" = :list_of_cols_val_tab_del
-      AND P1."BaseType" = 1470000113              -- PR
-      AND I0."InvntItem" = 'N'
-      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND IFNULL(R1."U_NDBS_BudgetYear",0) <> IFNULL(P1."U_NDBS_BudgetYear",0);
-
-    IF :cnt > 0 THEN
+    ELSEIF :cnt1 > 0 THEN
         error := 100;
         error_message := 'BIC ปีงบประมาณของ PR และ PO ไม่ตรงกัน';
-    END IF;
-
-    -- เช็ค Project ของ PO ที่อ้างอิง PR
-    SELECT COUNT(P0."DocEntry") INTO cnt
-    FROM OPOR P0
-    JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
-    LEFT JOIN PRQ1 R1
-        ON  R1."ObjType"  = P1."BaseType"
-        AND R1."DocEntry" = P1."BaseEntry"
-        AND R1."LineNum"  = P1."BaseLine"
-    JOIN OITM I0 ON I0."ItemCode" = P1."ItemCode"
-    JOIN OITB G0 ON G0."ItmsGrpCod" = I0."ItmsGrpCod"
-    WHERE P0."DocEntry" = :list_of_cols_val_tab_del
-      AND P1."BaseType" = 1470000113              -- PR
-      AND I0."InvntItem" = 'N'
-      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND IFNULL(R1."Project",'') <> IFNULL(P1."Project",'');
-
-    IF :cnt > 0 THEN
+    ELSEIF :cnt2 > 0 THEN
         error := 100;
         error_message := 'BIC Project ของ PR และ PO ไม่ตรงกัน';
     END IF;
@@ -546,7 +522,7 @@ IF :object_type = '18' AND (:transaction_type = 'A' OR :transaction_type = 'U') 
       AND PV1."BaseType" = 22                      -- PO
       AND I0."InvntItem" = 'N'
       AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND IFNULL(P1."U_NDBS_BudgetYear",NULL) <> IFNULL(PV1."U_NDBS_BudgetYear",NULL);
+      AND IFNULL(P1."U_NDBS_BudgetYear",0) <> IFNULL(PV1."U_NDBS_BudgetYear",0);
 
     IF :cnt > 0 THEN
         error := 100;
@@ -559,45 +535,23 @@ END IF;
 -- BIC017 : Asset Master Data บังคับกรอก U_Manufac2 และ U_Manufac3 Sart
 IF :object_type = '4' AND (:transaction_type = 'A' OR :transaction_type = 'U') THEN
 
-    -- ขาดทั้ง 2 ช่อง
-    SELECT COUNT(*) INTO cnt
+    SELECT
+        IFNULL(SUM(CASE WHEN IFNULL(TRIM(T0."U_Manufac2"), '') = '' THEN 1 ELSE 0 END),0),
+        IFNULL(SUM(CASE WHEN IFNULL(TRIM(T0."U_Manufac3"), '') = '' THEN 1 ELSE 0 END),0)
+    INTO cnt, cnt1
     FROM OITM T0
     WHERE T0."ItemCode" = :list_of_cols_val_tab_del
-      AND T0."ItemType" = 'F'
-      AND IFNULL(TRIM(T0."U_Manufac2"), '') = ''
-      AND IFNULL(TRIM(T0."U_Manufac3"), '') = '';
+      AND T0."ItemType" = 'F';
 
-    IF :cnt > 0 THEN
+    IF :cnt > 0 AND :cnt1 > 0 THEN
         error := 100;
         error_message := N'BIC กรุณาระบุข้อมูล แหล่งที่มา2 และ แหล่งที่มา3';
-    ELSE
-
-        -- ขาดเฉพาะ แหล่งที่มา2
-        SELECT COUNT(*) INTO cnt
-        FROM OITM T0
-        WHERE T0."ItemCode" = :list_of_cols_val_tab_del
-          AND T0."ItemType" = 'F'
-          AND IFNULL(TRIM(T0."U_Manufac2"), '') = '';
-
-        IF :cnt > 0 THEN
-            error := 100;
-            error_message := N'BIC กรุณาระบุข้อมูล แหล่งที่มา2';
-        ELSE
-
-            -- ขาดเฉพาะ แหล่งที่มา3
-            SELECT COUNT(*) INTO cnt
-            FROM OITM T0
-            WHERE T0."ItemCode" = :list_of_cols_val_tab_del
-              AND T0."ItemType" = 'F'
-              AND IFNULL(TRIM(T0."U_Manufac3"), '') = '';
-
-            IF :cnt > 0 THEN
-                error := 100;
-                error_message := N'BIC กรุณาระบุข้อมูล แหล่งที่มา3';
-            END IF;
-
-        END IF;
-
+    ELSEIF :cnt > 0 THEN
+        error := 100;
+        error_message := N'BIC กรุณาระบุข้อมูล แหล่งที่มา2';
+    ELSEIF :cnt1 > 0 THEN
+        error := 100;
+        error_message := N'BIC กรุณาระบุข้อมูล แหล่งที่มา3';
     END IF;
 
 END IF;
@@ -609,12 +563,14 @@ END IF;
 -- 100863 PR Budgetyear =''
 IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-	SELECT count(t0."DocEntry") Into cnt
+	SELECT
+		IFNULL(SUM(CASE WHEN IFNULL(t1."OcrCode",'') = '' THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE WHEN IFNULL(t1."U_NDBS_BudgetYear",0) = 0 THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from OPRQ t0
 	left join PRQ1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
 	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
 	and IFNULL(I1."InvntItem",'N')='N'
 	and t0."DocEntry" = :list_of_cols_val_tab_del;
 
@@ -624,19 +580,8 @@ IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type 
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
-IF :object_type ='1470000113' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-	SELECT count(t0."DocEntry") Into cnt
-	from OPRQ t0
-	left join PRQ1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	where 1 = 1
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 101;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
@@ -648,12 +593,15 @@ End If;
 -- 100863 PO Budgetyear =''
 IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-	SELECT count(t0."DocEntry") Into cnt
+	SELECT
+		IFNULL(SUM(CASE WHEN IFNULL(t1."OcrCode",'') = '' THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE WHEN IFNULL(t1."U_NDBS_BudgetYear",0) = 0 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y' THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from OPOR t0
 	left join POR1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
+	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
 	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
 	and IFNULL(I1."InvntItem",'N')='N'
 
 	and t0."DocEntry" = :list_of_cols_val_tab_del;
@@ -664,22 +612,8 @@ IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') T
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
--- 100863 PO Budgetyear =''
-IF :object_type ='22' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-	SELECT count(t0."DocEntry") Into cnt
-	from OPOR t0
-	left join POR1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-	where 1 = 1
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 102;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';
@@ -760,19 +694,26 @@ End If;
 -- 100863 Draft Budgetyear =''
 IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
 
-
-	select count(t0."DocEntry") into cnt
+	SELECT
+		IFNULL(SUM(CASE
+			WHEN T0."ObjType" IN ('1470000049','22')
+			 AND IFNULL(t1."OcrCode",'') = ''
+			 AND IFNULL(I1."InvntItem",'N') = 'N'
+			 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y'
+			THEN 1 ELSE 0 END),0),
+		IFNULL(SUM(CASE
+			WHEN T0."ObjType" IN ('1470000049','22','18','19')
+			 AND IFNULL(t1."U_NDBS_BudgetYear",0) = 0
+			 AND IFNULL(I1."InvntItem",'N') = 'N'
+			 AND T0."CANCELED" = 'N'
+			 AND IFNULL(I2."U_NTT_CtrlBG",'N') = 'Y'
+			THEN 1 ELSE 0 END),0)
+	INTO cnt, cnt1
 	from ODRF t0
 	left join DRF1 t1 on t0."DocEntry" = t1."DocEntry"
 	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
 	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-
-	where 1 = 1
-	and IFNULL(t1."OcrCode",'')=''
-	and T0."ObjType" IN ('1470000049','22')
-	and IFNULL(I1."InvntItem",'N')='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
+	where t0."DocEntry" = :list_of_cols_val_tab_del;
 
 	If :cnt > 0 Then
 
@@ -780,25 +721,8 @@ IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') 
 		error_message := 'ISS รบกวนใส่ฝ่าย';
 
 	End If;
-End If;
 
--- 100863 Draft Budgetyear =''
-IF :object_type ='112' And (:transaction_type = 'A' OR :transaction_type = 'U') Then
-
-	select count(t0."DocEntry") into cnt1
-	from ODRF t0
-	left join DRF1 t1 on t0."DocEntry" = t1."DocEntry"
-	left join OITM I1 ON T1."ItemCode" = I1."ItemCode"
-	LEFT JOIN OITB I2 ON I1."ItmsGrpCod"=I2."ItmsGrpCod"
-	where 1 = 1
-	and T0."ObjType" IN ('1470000049','22','18','19')
-	and IFNULL(t1."U_NDBS_BudgetYear",0)=0
-	and IFNULL(I1."InvntItem",'N')='N'
-	and T0."CANCELED" ='N'
-	and IFNULL(I2."U_NTT_CtrlBG",'N')='Y'
-	and t0."DocEntry" = :list_of_cols_val_tab_del;
-
-	If :cnt > 0 Then
+	If :cnt1 > 0 Then
 
 		error := 100;
 		error_message := 'ISS รบกวนตรวจสอบปีงบประมาณ';

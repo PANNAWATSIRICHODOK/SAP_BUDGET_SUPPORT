@@ -71,11 +71,11 @@ begin
 		Where (T0."Debit"-T0."Credit") <> 0
 		AND T0."TransType" IN( '30','46','24','59','60')
 		AND (
-			(:object_type = '30' AND TO_NVARCHAR(T0."TransId") = :datakey)
-			OR (:object_type = '24' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM ORCT WHERE TO_NVARCHAR("DocEntry") = :datakey))
-			OR (:object_type = '46' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OVPM WHERE TO_NVARCHAR("DocEntry") = :datakey))
-			OR (:object_type = '59' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OIGN WHERE TO_NVARCHAR("DocEntry") = :datakey))
-			OR (:object_type = '60' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OIGE WHERE TO_NVARCHAR("DocEntry") = :datakey))
+			(:object_type = '30' AND T0."TransId" = :datakey)
+			OR (:object_type = '24' AND T0."TransId" = (SELECT "TransId" FROM ORCT WHERE "DocEntry" = :datakey))
+			OR (:object_type = '46' AND T0."TransId" = (SELECT "TransId" FROM OVPM WHERE "DocEntry" = :datakey))
+			OR (:object_type = '59' AND T0."TransId" = (SELECT "TransId" FROM OIGN WHERE "DocEntry" = :datakey))
+			OR (:object_type = '60' AND T0."TransId" = (SELECT "TransId" FROM OIGE WHERE "DocEntry" = :datakey))
 		)
 		AND (
 			(:object_type = '30' AND IFNULL(T1."U_NDBS_UseBudget",'N') = 'Y')
