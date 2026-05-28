@@ -463,7 +463,7 @@ END IF;
 -- ::>>BIC015 BIC  Purchase Order  เช็ค Department/Budget Year/Project PR vs PO (เฉพาะรายการที่อ้างอิง PR) Start
 IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') THEN
 
-    -- นับบรรทัด PO ที่อ้างอิง PR แล้ว Department, BudgetYear หรือ Project ไม่ตรงกัน
+    -- เช็คฝ่ายของ PO ที่อ้างอิง PR
     SELECT COUNT(P0."DocEntry") INTO cnt
     FROM OPOR P0
     JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
@@ -477,15 +477,53 @@ IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') 
       AND P1."BaseType" = 1470000113              -- PR
       AND I0."InvntItem" = 'N'
       AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND (
-          IFNULL(R1."OcrCode",'') <> IFNULL(P1."OcrCode",'')
-          OR IFNULL(R1."U_NDBS_BudgetYear",0) <> IFNULL(P1."U_NDBS_BudgetYear",0)
-          OR IFNULL(R1."Project",'') <> IFNULL(P1."Project",'')
-      );
+      AND IFNULL(R1."OcrCode",'') <> IFNULL(P1."OcrCode",'');
 
     IF :cnt > 0 THEN
         error := 100;
-        error_message := 'BIC ฝ่าย ปีงบประมาณ หรือ Project ของ PR และ PO ไม่ตรงกัน';
+        error_message := 'BIC ฝ่ายของ PR และ PO ไม่ตรงกัน';
+    END IF;
+
+    -- เช็คปีงบประมาณของ PO ที่อ้างอิง PR
+    SELECT COUNT(P0."DocEntry") INTO cnt
+    FROM OPOR P0
+    JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
+    LEFT JOIN PRQ1 R1
+        ON  R1."ObjType"  = P1."BaseType"
+        AND R1."DocEntry" = P1."BaseEntry"
+        AND R1."LineNum"  = P1."BaseLine"
+    JOIN OITM I0 ON I0."ItemCode" = P1."ItemCode"
+    JOIN OITB G0 ON G0."ItmsGrpCod" = I0."ItmsGrpCod"
+    WHERE P0."DocEntry" = :list_of_cols_val_tab_del
+      AND P1."BaseType" = 1470000113              -- PR
+      AND I0."InvntItem" = 'N'
+      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
+      AND IFNULL(R1."U_NDBS_BudgetYear",0) <> IFNULL(P1."U_NDBS_BudgetYear",0);
+
+    IF :cnt > 0 THEN
+        error := 100;
+        error_message := 'BIC ปีงบประมาณของ PR และ PO ไม่ตรงกัน';
+    END IF;
+
+    -- เช็ค Project ของ PO ที่อ้างอิง PR
+    SELECT COUNT(P0."DocEntry") INTO cnt
+    FROM OPOR P0
+    JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
+    LEFT JOIN PRQ1 R1
+        ON  R1."ObjType"  = P1."BaseType"
+        AND R1."DocEntry" = P1."BaseEntry"
+        AND R1."LineNum"  = P1."BaseLine"
+    JOIN OITM I0 ON I0."ItemCode" = P1."ItemCode"
+    JOIN OITB G0 ON G0."ItmsGrpCod" = I0."ItmsGrpCod"
+    WHERE P0."DocEntry" = :list_of_cols_val_tab_del
+      AND P1."BaseType" = 1470000113              -- PR
+      AND I0."InvntItem" = 'N'
+      AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
+      AND IFNULL(R1."Project",'') <> IFNULL(P1."Project",'');
+
+    IF :cnt > 0 THEN
+        error := 100;
+        error_message := 'BIC Project ของ PR และ PO ไม่ตรงกัน';
     END IF;
 
 END IF;
