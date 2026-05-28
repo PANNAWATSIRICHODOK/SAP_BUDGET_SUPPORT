@@ -546,8 +546,12 @@ End If;
 	
 
 	if (error = 0) then
-		DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
-		DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
-		call NDBS_UpdateAllBudgetAmount;
+		if (:transaction_type = 'C') then
+			DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;
+			DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;
+			call NDBS_UpdateAllBudgetAmount;
+		else
+			call NDBS_UpdateTouchedBudgetAmount(:object_type,:list_of_cols_val_tab_del);
+		end if;
 	end if;
 end;
