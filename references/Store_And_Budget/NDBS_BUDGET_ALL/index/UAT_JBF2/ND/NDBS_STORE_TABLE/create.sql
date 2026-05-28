@@ -1,1 +1,0 @@
-CREATE COLUMN TABLE "UAT_JBF2"."NDBS_STORE_TABLE" ("object_type" NVARCHAR(30), "transaction_type" NVARCHAR(30), "num_of_cols_in_key" INTEGER CS_INT, "list_of_key_cols_tab_del" NVARCHAR(255), "docentry" NVARCHAR(255)) UNLOAD PRIORITY 5  AUTO MERGE 
