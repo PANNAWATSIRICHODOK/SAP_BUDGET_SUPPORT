@@ -13,9 +13,9 @@ begin
 	Declare cursor loopdept for
 		SELECT DISTINCT "BudgetGroup","BudgetYear","Department"
 		FROM "NDBS_BGC_OBDE"
-		WHERE IFNULL("BudgetGroup",'') <> ''
-		  AND IFNULL("BudgetYear",'') <> ''
-		  AND IFNULL("Department",'') <> ''
+		WHERE "BudgetGroup" IS NOT NULL AND "BudgetGroup" <> ''
+		  AND "BudgetYear" IS NOT NULL AND "BudgetYear" <> ''
+		  AND "Department" IS NOT NULL AND "Department" <> ''
 		  AND (
 			("ObjectType" = :RefreshObjectType AND "ObjectID" = :RefreshKey)
 			OR ("PrimaryObjectType" = :RefreshObjectType AND "PrimaryObjectID" = :RefreshKey)
@@ -25,9 +25,9 @@ begin
 	Declare cursor loopproj for
 		SELECT DISTINCT "BudgetGroup","BudgetYear","Project"
 		FROM "NDBS_BGC_OBPE"
-		WHERE IFNULL("BudgetGroup",'') <> ''
-		  AND IFNULL("BudgetYear",'') <> ''
-		  AND IFNULL("Project",'') <> ''
+		WHERE "BudgetGroup" IS NOT NULL AND "BudgetGroup" <> ''
+		  AND "BudgetYear" IS NOT NULL AND "BudgetYear" <> ''
+		  AND "Project" IS NOT NULL AND "Project" <> ''
 		  AND (
 			("ObjectType" = :RefreshObjectType AND "ObjectID" = :RefreshKey)
 			OR ("PrimaryObjectType" = :RefreshObjectType AND "PrimaryObjectID" = :RefreshKey)
