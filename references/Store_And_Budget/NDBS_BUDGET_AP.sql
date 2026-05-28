@@ -89,9 +89,9 @@ begin
 		--- 24 Oct 2025 ---
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 		left join
-		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :datakey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 		left join
-		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from POR1 T0 group by  T0."DocEntry")P ON T11."DocEntry" = P."DocEntry"
+		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from POR1 T0 where T0."DocEntry" in (select B."BaseEntry" from PCH1 B where B."DocEntry" = :datakey and B."BaseType" = '22') group by  T0."DocEntry")P ON T11."DocEntry" = P."DocEntry"
 		Where T0."LineTotal" <> 0  AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
 
 	--AP
@@ -111,7 +111,7 @@ begin
 		--- 24 Oct 2025 ---
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 		LEFT join
-		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :datakey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
 
@@ -138,7 +138,7 @@ begin
 		--- 24 Oct 2025 ---
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 		left join
-		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :datakey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
 
@@ -466,7 +466,7 @@ begin
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 									left join
-									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :BaseKey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 
 									Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine ;
 
@@ -629,7 +629,7 @@ begin
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 									left join
-									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :BaseKey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 
 									Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
 
@@ -690,7 +690,7 @@ begin
 										--- 24 Oct 2025 ---
 										LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 										left join
-										( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
+										( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 where T0."DocEntry" = :BaseKey group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
 
 										Where T0."LineTotal" <> 0  AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
 
