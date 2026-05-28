@@ -294,24 +294,24 @@
     <header>
       <span class="eyebrow">SAP Business One // UAT_JBF2 // Store_And_Budget ล่าสุด</span>
       <h1>Budget Flow: จุดที่ยังต้องแก้</h1>
-      <p>สรุปจาก SQL reference ล่าสุดและเทียบกับ BIC Budget User Manual แล้ว ตัดรายการที่แก้ route แล้วออก เหลือเฉพาะ bug, risk และจุดที่ต้องให้ vendor ยืนยัน.</p>
+      <p>สรุปจาก SQL reference ล่าสุด เทียบกับคู่มือ และปรับตาม requirement ล่าสุดว่าไม่ต้องรวมเอกสาร PR เข้า Budget.</p>
     </header>
 
     <div class="notice-box">
-      Expected: <span style="color: var(--sap-blue)">Reserved = PR + PO</span> |
+      Expected ล่าสุด: <span style="color: var(--sap-blue)">Reserved = PO</span> |
       <span style="color: var(--sap-warning)">Actual = AP + CN + JE + OUTGOING + GI + GR</span>
       <div class="manual-source">
-        อ้างอิงคู่มือ: Setup Budget Department / Setup Budget Project ระบุสูตร Reserved, Actual, Balance และ Remaining เหมือนกันทั้ง Department และ Project.
+        หมายเหตุ: คู่มือเดิมระบุ Reserved = PR + PO แต่ requirement ล่าสุดตัด PR ออกจาก Budget แล้ว จึงไม่รายงาน PR เป็น bug.
       </div>
     </div>
 
     <section class="summary" aria-label="Summary">
       <div class="summary-item">
-        <span class="summary-value">5</span>
+        <span class="summary-value">4</span>
         <span class="summary-label">bug ที่ยังเห็นจาก code</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">2</span>
+        <span class="summary-value">1</span>
         <span class="summary-label">risk ที่ต้องคุมก่อนตรวจซ้ำ</span>
       </div>
       <div class="summary-item">
@@ -323,30 +323,10 @@
     <main class="issue-stack" aria-label="Budget findings">
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_01 // PR_RESERVE_DISABLED</div>
+          <div class="issue-meta">BUG_01 // RETURN_NOT_TRIGGERED</div>
           <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>1. PR ยังไม่สร้างยอด Reserved</h2>
-        <p class="description">มี <code>NDBS_BUDGET_PR.sql</code> แล้ว แต่ budget flow หลักยังไม่เรียก PR.</p>
-        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Reserved ต้องรวม PR + PO ดังนั้น PR ไม่เข้า flow คือขัดกับสูตรคู่มือโดยตรง.</p>
-        <p class="action">ควรแก้: เพิ่ม object <code>1470000113</code> ใน TN call list และเปิด call ไป <code>NDBS_BUDGET_PR</code>.</p>
-        <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
-        <div class="code-block">
-          <div class="code-inner">
-            <span class="code-line buggy-line">IF :object_type In ('22','20','18','19','30','24','46','59','60') then</span>
-            <span class="code-line"></span>
-            <span class="code-line buggy-line">--if ( :object_type = '1470000113') then</span>
-            <span class="code-line buggy-line">--  Call NDBS_BUDGET_PR (...);</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="issue-card">
-        <div class="issue-header">
-          <div class="issue-meta">BUG_02 // RETURN_NOT_TRIGGERED</div>
-          <span class="badge badge-critical">ยังผิด</span>
-        </div>
-        <h2>2. Goods Return object 21 ไม่เข้า budget flow</h2>
+        <h2>1. Goods Return object 21 ไม่เข้า budget flow</h2>
         <p class="description">Control มี branch สำหรับ Return แล้ว แต่ TN ไม่ส่ง object <code>21</code> เข้าไป.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือไม่ได้แยก Return ชัดเจน แต่ SQL ล่าสุดมี <code>NDBS_BUDGET_RETURN</code> และ control branch อยู่แล้ว จึงเป็น mismatch ที่ต้องให้ vendor ยืนยัน scope.</p>
         <p class="action">ควรแก้: เพิ่ม <code>21</code> ใน call list ของ <code>SBO_SP_TransactionNotification</code>.</p>
@@ -363,10 +343,10 @@
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_03 // ACTUAL_DISPATCH_MISSING</div>
+          <div class="issue-meta">BUG_02 // ACTUAL_DISPATCH_MISSING</div>
           <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>3. OUTGOING / GI / GR เข้า TN แล้ว แต่ control ไม่ dispatch</h2>
+        <h2>2. OUTGOING / GI / GR เข้า TN แล้ว แต่ control ไม่ dispatch</h2>
         <p class="description"><code>NDBS_BUDGET_JE</code> รองรับ <code>24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> เรียก JE เฉพาะ object <code>30</code>.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม OUTGOING + GI + GR ดังนั้น object เหล่านี้ต้องสร้าง movement ได้จริง.</p>
         <p class="action">ควรแก้: เพิ่ม dispatch สำหรับ <code>24,46,59,60</code> หรือปรับ branch JE ให้ครอบคลุม.</p>
@@ -383,10 +363,10 @@
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_04 // APCN_CANCEL_LOGIC</div>
+          <div class="issue-meta">BUG_03 // APCN_CANCEL_LOGIC</div>
           <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>4. APCN Cancel ใช้เงื่อนไขที่จริงเสมอ</h2>
+        <h2>3. APCN Cancel ใช้เงื่อนไขที่จริงเสมอ</h2>
         <p class="description"><code>BCount >= 0</code> ผ่านเสมอ แม้ไม่พบ movement เดิม จึงเสี่ยง reverse ผิดหรือเจอ no data found.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม CN; การ cancel/reverse ของ CN ต้องจับ movement เดิมให้ถูก ไม่ใช่ผ่านเงื่อนไขเสมอ.</p>
         <p class="action">ควรแก้: เปลี่ยนเป็น <code>BCount > 0</code> และจัดการกรณีไม่พบข้อมูลให้ชัดเจน.</p>
@@ -401,10 +381,10 @@
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_05 // AP_ACCOUNT_MAPPING</div>
+          <div class="issue-meta">BUG_04 // AP_ACCOUNT_MAPPING</div>
           <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>5. AP mapping ใช้ FormatCode เทียบกับ AcctCode</h2>
+        <h2>4. AP mapping ใช้ FormatCode เทียบกับ AcctCode</h2>
         <p class="description">ถ้า budget setup เก็บ <code>U_FormatCode</code> จริง จุดนี้จะหา budget group ไม่เจอ.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือให้ตั้ง COA และ Budget Group เป็นฐานควบคุมงบ; join account ผิดทำให้เอกสาร AP หา budget group ไม่ถูก.</p>
         <p class="action">ควรแก้: เทียบกับ <code>T4."FormatCode"</code> ให้ตรงกับ pattern ที่ถูกใน procedure อื่น.</p>
@@ -419,29 +399,10 @@
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">RISK_01 // PO_RESERVE_FROM_PR</div>
-          <span class="badge badge-warning">ต้องตรวจซ้ำ</span>
-        </div>
-        <h2>6. PO Reserve ต้องตรวจซ้ำหลังเปิด PR</h2>
-        <p class="description">PO มี logic รับฐานจาก PR แล้ว แต่เพราะ PR reserve ยังไม่ active ผลรวม Reserved ยังเชื่อไม่ได้.</p>
-        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Reserved = PR + PO ดังนั้น flow <code>PR -> PO</code> ต้องไม่ทำให้ยอดจองหายหรือซ้ำ.</p>
-        <p class="action">ควรทำ: แก้ PR ก่อน แล้วทดสอบ <code>PR -> PO</code> ทั้ง Department และ Project.</p>
-        <span class="code-label">ไฟล์: NDBS_BUDGET_PO.sql</span>
-        <div class="code-block">
-          <div class="code-inner">
-            <span class="code-line">INSERT INTO "NDBS_BGC_OBDE" (...)</span>
-            <span class="code-line ok-line">VALUES (...,'22',:DocKey,:DocLine,:BaseType,:BaseKey,:BaseLine,:BAmount,'R',...);</span>
-            <span class="code-line ok-line">IF :BaseType IN ('-1','1470000113') then</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="issue-card">
-        <div class="issue-header">
-          <div class="issue-meta">RISK_02 // FULL_REFRESH</div>
+          <div class="issue-meta">RISK_01 // FULL_REFRESH</div>
           <span class="badge badge-warning">performance</span>
         </div>
-        <h2>7. Full refresh ถูกเรียกทุก transaction</h2>
+        <h2>5. Full refresh ถูกเรียกทุก transaction</h2>
         <p class="description"><code>NDBS_UpdateAllBudgetAmount</code> เป็น set-based แล้ว แต่การเรียกทุกครั้งยังเสี่ยงช้าเมื่อข้อมูลเยอะ.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> Balance และ Remaining ของ Budget Department/Project อ้างอิงยอด Reserved + Actual; refresh ที่ช้าหรือผิดจะกระทบหน้าจอตรวจสอบงบ.</p>
         <p class="action">ควรทำ: ยืนยัน performance บน UAT และพิจารณา refresh เฉพาะ budget key ที่กระทบ.</p>
@@ -462,8 +423,8 @@
           <div class="issue-meta">CHECK_01 // LEGACY_NOTIFICATION_UNUSED</div>
           <span class="badge badge-warning">ต้องยืนยัน</span>
         </div>
-        <h2>8. NDBS_BudgetNotification ยังอยู่ แต่ไม่พบ caller</h2>
-        <p class="description">procedure นี้มี logic หลาย object รวมถึง PR/Return แต่ค้นทั้งชุดแล้วไม่พบการ call จาก procedure อื่น.</p>
+        <h2>6. NDBS_BudgetNotification ยังอยู่ แต่ไม่พบ caller</h2>
+        <p class="description">procedure นี้มี logic หลาย object รวมถึง flow เก่าที่เกี่ยวกับ PR/Return แต่ค้นทั้งชุดแล้วไม่พบการ call จาก procedure อื่น.</p>
         <p class="manual-note"><strong>เทียบคู่มือ:</strong> ไม่ใช่ requirement ที่คู่มือระบุชื่อ procedure แต่เป็นความเสี่ยงด้าน implementation ว่ามี logic เก่าค้างหรือหลุดจาก flow.</p>
         <p class="action">ควรให้ vendor ยืนยัน: เป็น legacy ที่เลิกใช้แล้ว หรือยังต้องผูกกลับเข้าระบบ.</p>
         <span class="code-label">ไฟล์: NDBS_BudgetNotification.sql</span>
@@ -477,7 +438,7 @@
     </main>
 
     <footer>
-      ตรวจจาก references/Store_And_Budget ล่าสุด + references/BIC_budget User Manual.docx // แสดงเฉพาะรายการที่ยังต้องแก้หรือยืนยัน
+      ตรวจจาก references/Store_And_Budget ล่าสุด + references/BIC_budget User Manual.docx + requirement ล่าสุดจากหัวหน้า
     </footer>
   </div>
 </body>
