@@ -559,9 +559,7 @@ IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') T
 	
 End If;
 
-	if ( :object_type = '1470000113') then
-		Call NDBS_BUDGET_PR (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);
-	elseif ( :object_type = '22') then
+	if ( :object_type = '22') then
 		Call NDBS_BUDGET_PO (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);
 	elseif ( :object_type = '20') then
 		Call NDBS_BUDGET_GRPO (:object_type,:transaction_type,:list_of_cols_val_tab_del,:error,:error_message);

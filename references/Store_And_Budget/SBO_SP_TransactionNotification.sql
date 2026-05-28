@@ -460,10 +460,10 @@ IF :object_type = '1470000113' And (:transaction_type = 'A' OR :transaction_type
 END IF;
 -- BIC014 Purchase Request  บังคับเลือก Department (ใช้ทั้ง 4 บริษัท) END
 
--- ::>>BIC015 BIC  Purchase Order  เช็ค Budget Year PR vs PO (เฉพาะรายการที่อ้างอิง PR) Start
+-- ::>>BIC015 BIC  Purchase Order  เช็ค Department/Budget Year/Project PR vs PO (เฉพาะรายการที่อ้างอิง PR) Start
 IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') THEN
 
-    -- นับบรรทัด PO ที่อ้างอิง PR แล้ว BudgetYear ไม่ตรงกัน
+    -- นับบรรทัด PO ที่อ้างอิง PR แล้ว Department, BudgetYear หรือ Project ไม่ตรงกัน
     SELECT COUNT(P0."DocEntry") INTO cnt
     FROM OPOR P0
     JOIN POR1 P1 ON P1."DocEntry" = P0."DocEntry"
@@ -477,11 +477,15 @@ IF :object_type = '22' AND (:transaction_type = 'A' OR :transaction_type = 'U') 
       AND P1."BaseType" = 1470000113              -- PR
       AND I0."InvntItem" = 'N'
       AND (G0."ItmsGrpNam" LIKE 'ASS%' OR G0."ItmsGrpNam" LIKE 'EXP%')
-      AND IFNULL(R1."U_NDBS_BudgetYear",NULL) <> IFNULL(P1."U_NDBS_BudgetYear",NULL);
+      AND (
+          IFNULL(R1."OcrCode",'') <> IFNULL(P1."OcrCode",'')
+          OR IFNULL(R1."U_NDBS_BudgetYear",0) <> IFNULL(P1."U_NDBS_BudgetYear",0)
+          OR IFNULL(R1."Project",'') <> IFNULL(P1."Project",'')
+      );
 
     IF :cnt > 0 THEN
         error := 100;
-        error_message := 'BIC ปีงบประมาณ PR และ PO ไม่ตรงกัน';
+        error_message := 'BIC ฝ่าย ปีงบประมาณ หรือ Project ของ PR และ PO ไม่ตรงกัน';
     END IF;
 
 END IF;
@@ -1104,7 +1108,7 @@ IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') T
 End If;
 
 if :error = 0 then
-	IF :object_type In ('1470000113','22','20','21','18','19','30','24','46','59','60') then
+	IF :object_type In ('22','20','21','18','19','30','24','46','59','60') then
 		call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:datakey,:list_of_key_cols_tab_del,:list_of_cols_val_tab_del,:error,:error_message);
 	end if;
 end if;
