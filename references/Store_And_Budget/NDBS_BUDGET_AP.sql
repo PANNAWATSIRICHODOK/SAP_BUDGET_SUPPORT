@@ -13,6 +13,8 @@ begin
 	-- Budget Control
 	Declare LineNum INTEGER DEFAULT 0;
 	Declare AutoKey Integer = 0;
+	Declare AutoKeyDept Integer = 0;
+	Declare AutoKeyProj Integer = 0;
 	Declare IsCancelled Nvarchar(1);
 	Declare OldProject Nvarchar(50);
 	Declare OldDept Nvarchar(50);
@@ -52,14 +54,14 @@ begin
 
 	Declare OldBProject Nvarchar(50);
 	Declare OldBDept Nvarchar(50);
-	
-	Declare cursor loopinvcancel for		
+
+	Declare cursor loopinvcancel for
 		SELECT T0."BaseType",T0."BaseEntry",T0."BaseLine",T0."Project"
 		FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		LEFT JOIN OITM I1 ON T0."ItemCode"=I1."ItemCode"
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
 
-	--PR>PO>AP		
+	--PR>PO>AP
 	Declare cursor loopinv1 for
 		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T0."OcrCode" "DocDept", T0."Project", T3."Project" "OldProject"
 		, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
@@ -67,12 +69,12 @@ begin
 		,T1."DocEntry",T0."LineNum",
 		T6."Code",T6."U_Locked",T9."Code" "OldCode",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
 		Case When T6."U_Center" = 'Y' THEN T6."U_Department"
-		When T6."U_UseGroupCode" = 'N' THEN T7."PrcCode" 
+		When T6."U_UseGroupCode" = 'N' THEN T7."PrcCode"
 		ELSE T7."U_NDBS_BudgetDept" END "OcrCode",
 		Case When T9."U_Center" = 'Y' THEN T9."U_Department"
-		When T9."U_UseGroupCode" = 'N' THEN T10."PrcCode" 
+		When T9."U_UseGroupCode" = 'N' THEN T10."PrcCode"
 		ELSE T10."U_NDBS_BudgetDept" END "OldOcrCode"
-		FROM PCH1 T0 
+		FROM PCH1 T0
 		Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		--Inner Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
 		INNER Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry" AND T3."LineNum" = T0."BaseLine" AND T0."BaseType" = '22'
@@ -82,24 +84,24 @@ begin
 		INNER Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 		LEFT Join OPRC T7 ON T7."PrcCode" = T0."OcrCode"
 		INNER Join "@NDBS_BGC_BGPL" T8 ON T8."U_AccountCode" = T3."AcctCode"
-		INNER Join "@NDBS_BGC_OBGP" T9 ON T8."Code" = T9."Code"		
+		INNER Join "@NDBS_BGC_OBGP" T9 ON T8."Code" = T9."Code"
 		LEFT Join OPRC T10 ON T10."PrcCode" = T3."OcrCode"
 		--- 24 Oct 2025 ---
-		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"		
-		left join 
+		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
+		left join
 		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-		left join 
+		left join
 		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from POR1 T0 group by  T0."DocEntry")P ON T11."DocEntry" = P."DocEntry"
 		Where T0."LineTotal" <> 0  AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
-	
-	--AP		
+
+	--AP
 	Declare cursor loopinv2 for
 		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T0."OcrCode" "DocDept", T0."Project"
 		, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
 		,T1."DocEntry",T0."LineNum",
 				T6."Code",T6."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
 				Case When T6."U_Center" = 'Y' THEN T6."U_Department"
-				When T6."U_UseGroupCode" = 'N' THEN T7."PrcCode" 
+				When T6."U_UseGroupCode" = 'N' THEN T7."PrcCode"
 				ELSE T7."U_NDBS_BudgetDept" END "OcrCode"
 		FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		INNER Join OACT T4 ON T0."AcctCode" = T4."AcctCode"
@@ -108,22 +110,22 @@ begin
 		LEFT Join OPRC T7 ON T7."PrcCode" = T0."OcrCode"
 		--- 24 Oct 2025 ---
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
-		LEFT join 
+		LEFT join
 		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-		
+
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
-	
-	--PR>PO>GRP>AP		
+
+	--PR>PO>GRP>AP
 	Declare cursor loopinv3 for
 		SELECT T1."DocDate",T0."U_NDBS_BudgetYear",T0."OcrCode" "DocDept", T0."Project", T0."Project" "OldProject"
 		, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
 		,T1."DocEntry",T0."LineNum",
 			T6."Code",T6."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
-			Case When T6."U_Center" = 'Y' THEN T6."U_Department" 
+			Case When T6."U_Center" = 'Y' THEN T6."U_Department"
 			When T6."U_UseGroupCode" = 'N' THEN T7."PrcCode"
 			ELSE T7."U_NDBS_BudgetDept" END "OcrCode",
 				Case When T6."U_Center" = 'Y' THEN T6."U_Department"
-				When T6."U_UseGroupCode" = 'N' THEN T8."PrcCode" 
+				When T6."U_UseGroupCode" = 'N' THEN T8."PrcCode"
 				ELSE T8."U_NDBS_BudgetDept" END "OldOcrCode"
 		FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 		INNER Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine" AND T0."BaseType" = '20'
@@ -135,16 +137,16 @@ begin
 		LEFT Join OPRC T8 ON T8."PrcCode" = T2."OcrCode"
 		--- 24 Oct 2025 ---
 		LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
-		left join 
+		left join
 		( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-		
+
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
-		
-	
-	
+
+
+
 
 	if(:transaction_type IN ('A','C')) then
-		
+
 		Select "CANCELED" into IsCancelled From OPCH Where "DocEntry" = :datakey;
 		IF IsCancelled = 'C' then
 			for currloop as loopinvcancel do
@@ -152,46 +154,49 @@ begin
 					BaseType = currloop."BaseType";
 					BaseKey = currloop."BaseEntry";
 					BaseLine = currloop."BaseLine";
-					
+
 					Update "NDBS_BGC_OBDE" Set "BudgetStatus" = 'C'
 					Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-					
+
 					Select Count(*) into BCOunt
-					From "NDBS_BGC_OBDE" 
+					From "NDBS_BGC_OBDE"
 					Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-				
-					if BCOunt > 0 
+
+					if BCOunt > 0
 					then
-					
+
 						Select TOP 1 "BudgetYear","BudgetGroup","Department"  into OldYear,OldGroup,OldDept
-						From "NDBS_BGC_OBDE" 
+						From "NDBS_BGC_OBDE"
 						Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine
 						Order By "DocEntry" Desc;
-					end if;	
+					end if;
 				else
 					BaseType = currloop."BaseType";
 					BaseKey = currloop."BaseEntry";
 					BaseLine = currloop."BaseLine";
-					
+
 					Update "NDBS_BGC_OBPE" Set "BudgetStatus" = 'C'
 					Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-					
+
 					Select Count(*) into BCOunt
-					From "NDBS_BGC_OBPE" 
+					From "NDBS_BGC_OBPE"
 					Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-				
-					if BCOunt > 0 
+
+					if BCOunt > 0
 					then
-					--IF :BaseKey NOT IN  ('173687','173836','174798','176967') THEN 
+					--IF :BaseKey NOT IN  ('173687','173836','174798','176967') THEN
 						Select TOP 1 IFNULL("BudgetYear",0), IFNULL("BudgetGroup",''), IFNULL("Project",'')  into OldYear,OldGroup,OldDept
-						From "NDBS_BGC_OBPE" 
+						From "NDBS_BGC_OBPE"
 						Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine
 						Order By "DocEntry" Desc;
-					
+
 					end if;
-				end if;					
+				end if;
 			end for;
 		else
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
+
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 			--Inner Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -202,10 +207,10 @@ begin
 			--- 24 Oct 2025 ---
 			LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 			Where T0."LineTotal" <> 0 AND T0."DocEntry" = :datakey AND IFNULL(I1."InvntItem",'N') <> 'Y';
-		
+
 			IF :Bcount > 0 then
 				for currloop as loopinv1 do
-					IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
+					IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 						BValDate = currloop."DocDate";
 						BYear = currloop."U_NDBS_BudgetYear";
 						BDept = currloop."OcrCode";
@@ -223,8 +228,8 @@ begin
 						OldDept	= currloop."OldOcrCode";
 						OldAmount = currloop."OldLineTotal";
 						OldGroup = currloop."OldCode";
-						
-					
+
+
 						Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal",T0."Quantity",T1."Quantity" into BDiffAmount, BaseAmount,ActQty,BaseQty
 						FROM PCH1 T0 Inner JOin POR1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 						--- 24 Oct 2025 ---
@@ -234,9 +239,11 @@ begin
 						IF ActQty <> BaseQty then
 							BaseAmount = ROUND(BaseAmount*ActQty/BaseQty,0.01);
 						end if;
-						
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
-						
+
+						AutoKeyDept = :AutoKeyDept + 1;
+
+						AutoKey = :AutoKeyDept;
+
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -244,8 +251,10 @@ begin
 						VALUES
 							(:AutoKey,:OldGroup,TO_NVARCHAR(:BYear),:OldDept,:BaseType,:BaseKey,:BaseLine,
 								'18',:DocKey,:DocLine,-:OldAmount,'R',:BValDate,'A','18',:DocKey,:DocLine);
-		
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+
+						AutoKeyDept = :AutoKeyDept + 1;
+
+						AutoKey = :AutoKeyDept;
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -253,7 +262,7 @@ begin
 						VALUES
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,'18',:DocKey,:DocLine,
 								:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-								
+
 					else
 						BValDate = currloop."DocDate";
 						BYear = currloop."U_NDBS_BudgetYear";
@@ -272,18 +281,17 @@ begin
 						OldBProject = currloop."OldProject";
 						OldAmount = currloop."OldLineTotal";
 						OldGroup = currloop."OldCode";
-						
+
 						Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal",T0."Quantity",T1."Quantity" into BDiffAmount, BaseAmount,ActQty,BaseQty
 						FROM PCH1 T0 Inner JOin POR1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 						--- 24 Oct 2025 ---
 						LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 						WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-						Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
-						
 						IF ActQty <> BaseQty then
 							BaseAmount = ROUND(BaseAmount*ActQty/BaseQty,0.01);
 						end if;
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -291,15 +299,16 @@ begin
 						VALUES
 							(:AutoKey,:OldGroup,TO_NVARCHAR(:BYear),:OldBProject,:BaseType,:BaseKey,:BaseLine,
 								'18',:DocKey,:DocLine,-:OldAmount,'R',:BValDate,'A','18',:DocKey,:DocLine);
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
-							
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
+
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
 								"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine")
 						VALUES
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,'18',:DocKey,:DocLine,
-								:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);	
+								:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
 					end if;
 				end for;
 			else
@@ -315,7 +324,7 @@ begin
 				Where T0."LineTotal" <> 0 AND T0."DocEntry" = :datakey AND IFNULL(I1."InvntItem",'N') <> 'Y';
 				IF :Bcount > 0 then
 					for currloop as loopinv3 do
-						IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
+						IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 							BValDate = currloop."DocDate";
 							BYear = currloop."U_NDBS_BudgetYear";
 							BDept = currloop."OcrCode";
@@ -331,15 +340,17 @@ begin
 							BaseKey = currloop."BaseEntry";
 							BaseLine = currloop."BaseLine";
 							OldBDept = currloop."OldOcrCode";
-							
+
 							Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 							FROM PCH1 T0 Inner JOin PDN1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 							--- 24 Oct 2025 ---
 							LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 							WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
 
-							Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
-						
+							AutoKeyDept = :AutoKeyDept + 1;
+
+							AutoKey = :AutoKeyDept;
+
 							INSERT INTO "NDBS_BGC_OBDE"
 							("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 							"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -347,8 +358,10 @@ begin
 							VALUES
 								(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBDept,:BaseType,:BaseKey,:BaseLine,
 									'18',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','18',:DocKey,:DocLine);
-										
-							Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+
+							AutoKeyDept = :AutoKeyDept + 1;
+
+							AutoKey = :AutoKeyDept;
 							INSERT INTO "NDBS_BGC_OBDE"
 							("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 							"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -356,7 +369,7 @@ begin
 							VALUES
 								(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBDept,'18',:DocKey,:DocLine,
 									:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-									
+
 						else
 							BValDate = currloop."DocDate";
 							BYear = currloop."U_NDBS_BudgetYear";
@@ -373,14 +386,15 @@ begin
 							BaseKey = currloop."BaseEntry";
 							BaseLine = currloop."BaseLine";
 							OldBProject = currloop."OldProject";
-							
+
 							Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 							FROM PCH1 T0 Inner JOin PDN1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 							--- 24 Oct 2025 ---
 							LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 							WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-							Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
-						
+							AutoKeyProj = :AutoKeyProj + 1;
+							AutoKey = :AutoKeyProj;
+
 							INSERT INTO "NDBS_BGC_OBPE"
 							("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 							"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -388,20 +402,22 @@ begin
 							VALUES
 								(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,:BaseType,:BaseKey,:BaseLine,
 									'18',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','18',:DocKey,:DocLine);
-										
-							Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+
+							AutoKeyProj = :AutoKeyProj + 1;
+
+							AutoKey = :AutoKeyProj;
 							INSERT INTO "NDBS_BGC_OBPE"
 							("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 							"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
 								"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine")
 							VALUES
 								(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,'18',:DocKey,:DocLine,
-									:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);								
+									:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
 						end if;
 					end for;
 				else
 					for currloop as loopinv2 do
-						IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
+						IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 							BValDate = currloop."DocDate";
 							BYear = currloop."U_NDBS_BudgetYear";
 							BDept = currloop."OcrCode";
@@ -419,7 +435,7 @@ begin
 							IF (:BaseType = '18') then
 								BaseAmount = -:BaseAmount;
 							End if;
-							
+
 							IF (BaseType='18') then
 								SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 								FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
@@ -431,7 +447,7 @@ begin
 								--- 24 Oct 2025 ---
 								LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 								Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND IFNULL(I1."InvntItem",'N') <> 'Y';
-					
+
 								IF :Bcount > 0 then
 									SELECT T1."DocDate",T0."U_NDBS_BudgetYear", T0."Project"
 									, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
@@ -449,20 +465,21 @@ begin
 									Inner Join "@NDBS_BGC_OBGP" T8 ON T7."Code" = T8."Code"
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
-									left join 
+									left join
 									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-	
+
 									Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine ;
-									
+
 									Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 									FROM PCH1 T0 Inner JOin POR1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 									WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-	
+
 									BAmount = -:BAmount;
-									Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
-									
+									AutoKeyDept = :AutoKeyDept + 1;
+									AutoKey = :AutoKeyDept;
+
 									INSERT INTO "NDBS_BGC_OBDE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -470,8 +487,10 @@ begin
 									VALUES
 										(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,:BaseType,:BaseKey,:BaseLine,
 											'18',:DocKey,:DocLine,:BaseAmount,'R',:BValDate,'A','18',:DocKey,:DocLine);
-											
-									Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+
+									AutoKeyDept = :AutoKeyDept + 1;
+
+									AutoKey = :AutoKeyDept;
 									INSERT INTO "NDBS_BGC_OBDE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -479,7 +498,7 @@ begin
 									VALUES
 										(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,'18',:DocKey,:DocLine,
 											:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-									
+
 								else
 									SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 									FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
@@ -505,16 +524,17 @@ begin
 										--- 24 Oct 2025 ---
 										LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 										Where T0."LineTotal" <> 0  AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-										
+
 										Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 										FROM PCH1 T0 Inner JOin PDN1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 										--- 24 Oct 2025 ---
 										LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 										WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-	
+
 										BAmount = -:BAmount;
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
-									
+										AutoKeyDept = :AutoKeyDept + 1;
+										AutoKey = :AutoKeyDept;
+
 										INSERT INTO "NDBS_BGC_OBDE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -522,8 +542,10 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,:BaseType,:BaseKey,:BaseLine,
 												'18',:DocKey,:DocLine,:BaseAmount,'A',:BValDate,'A','18',:DocKey,:DocLine);
-												
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+
+										AutoKeyDept = :AutoKeyDept + 1;
+
+										AutoKey = :AutoKeyDept;
 										INSERT INTO "NDBS_BGC_OBDE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -531,10 +553,11 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 												:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-											
-												
-									else 
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+
+
+									else
+										AutoKeyDept = :AutoKeyDept + 1;
+										AutoKey = :AutoKeyDept;
 										BAmount = -:BAmount;
 										INSERT INTO "NDBS_BGC_OBDE"
 											("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
@@ -543,12 +566,13 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 												:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-												
-											
+
+
 									end if;
 								end if;
 							else
-								Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+								AutoKeyDept = :AutoKeyDept + 1;
+								AutoKey = :AutoKeyDept;
 								INSERT INTO "NDBS_BGC_OBDE"
 									("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 									"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -556,7 +580,7 @@ begin
 								VALUES
 									(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 										:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-								
+
 							end if;
 						else
 							BValDate = currloop."DocDate";
@@ -576,7 +600,7 @@ begin
 							IF (:BaseType = '18') then
 								BaseAmount = -:BaseAmount;
 							End if;
-							
+
 							IF (BaseType='18') then
 								SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 								FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
@@ -588,7 +612,7 @@ begin
 								--- 24 Oct 2025 ---
 								LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 								Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND IFNULL(I1."InvntItem",'N') <> 'Y';
-					
+
 								IF :Bcount > 0 then
 									SELECT T1."DocDate",T0."U_NDBS_BudgetYear", T3."Project"
 
@@ -604,20 +628,21 @@ begin
 									Inner Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
-									left join 
+									left join
 									( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-	
+
 									Where T0."LineTotal" <> 0 AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-									
+
 									Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 									FROM PCH1 T0 left JOin POR1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 									WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-	
+
 									BAmount = -:BAmount;
-									Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
-								
+									AutoKeyProj = :AutoKeyProj + 1;
+									AutoKey = :AutoKeyProj;
+
 									INSERT INTO "NDBS_BGC_OBPE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -625,8 +650,10 @@ begin
 									VALUES
 										(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,:BaseType,:BaseKey,:BaseLine,
 											'18',:DocKey,:DocLine,:BaseAmount,'R',:BValDate,'A','18',:DocKey,:DocLine);
-											
-									Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+
+									AutoKeyProj = :AutoKeyProj + 1;
+
+									AutoKey = :AutoKeyProj;
 									INSERT INTO "NDBS_BGC_OBPE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -634,7 +661,7 @@ begin
 									VALUES
 										(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 											:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-									
+
 								else
 									SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 									FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
@@ -649,7 +676,7 @@ begin
 									IF :Bcount > 0 then
 										SELECT T1."DocDate",T0."U_NDBS_BudgetYear", T0."Project"
 										, CASE WHEN T1."DiscSum" = 0 THEN T0."LineTotal" ELSE T0."LineTotal"-ROUND((T0."LineTotal"/S."LineTotal")*T1."DiscSum",2) END AS "LineTotal"
-									
+
 										,T1."DocEntry",T0."LineNum",
 											T6."Code",T6."U_Locked",T0."U_NDBS_NotCheckBudget",T0."U_NDBS_BudgetReason",T0."BaseType",T0."BaseEntry",T0."BaseLine",
 											Case When T6."U_Center" = 'Y' THEN T6."U_Department" ELSE T0."OcrCode" END "OcrCode"
@@ -662,20 +689,21 @@ begin
 										Inner Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 										--- 24 Oct 2025 ---
 										LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
-										left join 
+										left join
 										( select T0."DocEntry",SUM(T0."LineTotal") AS "LineTotal" from PCH1 T0 group by  T0."DocEntry")S ON T0."DocEntry" =S."DocEntry"
-	
+
 										Where T0."LineTotal" <> 0  AND T0."DocEntry" = :BaseKey AND T0."LineNum" = :BaseLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-										
+
 										Select TOP 1 (T0."LineTotal"-T1."LineTotal"), T1."LineTotal" into BDiffAmount, BaseAmount
 										FROM PCH1 T0 left JOin PDN1 T1 ON T0."BaseEntry" = T1."DocEntry" AND T0."BaseLine" = T1."LineNum"
 										--- 24 Oct 2025 ---
 										LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 										WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
-	
+
 										BAmount = -:BAmount;
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
-									
+										AutoKeyProj = :AutoKeyProj + 1;
+										AutoKey = :AutoKeyProj;
+
 										INSERT INTO "NDBS_BGC_OBPE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -683,8 +711,10 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,:BaseType,:BaseKey,:BaseLine,
 												'18',:DocKey,:DocLine,:BaseAmount,'A',:BValDate,'A','18',:DocKey,:DocLine);
-												
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+
+										AutoKeyProj = :AutoKeyProj + 1;
+
+										AutoKey = :AutoKeyProj;
 										INSERT INTO "NDBS_BGC_OBPE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -692,10 +722,11 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 												:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-										
-												
-									else 
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+
+
+									else
+										AutoKeyProj = :AutoKeyProj + 1;
+										AutoKey = :AutoKeyProj;
 										BAmount = -:BAmount;
 										INSERT INTO "NDBS_BGC_OBPE"
 											("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
@@ -704,12 +735,13 @@ begin
 										VALUES
 											(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 												:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-												
-											
+
+
 									end if;
 								end if;
 							else
-								Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+								AutoKeyProj = :AutoKeyProj + 1;
+								AutoKey = :AutoKeyProj;
 								INSERT INTO "NDBS_BGC_OBPE"
 									("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 									"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -717,7 +749,7 @@ begin
 								VALUES
 									(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 										:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine);
-								
+
 							end if;
 						end if;
 					end for;

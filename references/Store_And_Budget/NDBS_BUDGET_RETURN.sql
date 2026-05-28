@@ -13,6 +13,8 @@ begin
 	-- Budget Control
 	Declare LineNum INTEGER DEFAULT 0;
 	Declare AutoKey Integer = 0;
+	Declare AutoKeyDept Integer = 0;
+	Declare AutoKeyProj Integer = 0;
 	Declare IsCancelled Nvarchar(1);
 	Declare OldProject Nvarchar(50);
 	Declare OldDept Nvarchar(50);
@@ -75,6 +77,9 @@ begin
 		Where T0."LineTotal" <> 0 AND IFNULL(I1."InvntItem",'N') <> 'Y' AND T0."DocEntry" = :datakey;
 
 	if(:transaction_type IN ('A')) then
+		Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+		Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
+
 		for currloop as loopreturn do
 			if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 				BValDate = currloop."DocDate";
@@ -92,7 +97,8 @@ begin
 				BaseKey = currloop."BaseEntry";
 				BaseLine = currloop."BaseLine";
 				
-				Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+				AutoKeyDept = :AutoKeyDept + 1;
+				AutoKey = :AutoKeyDept;
 					
 				INSERT INTO "NDBS_BGC_OBDE"
 				("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
@@ -118,7 +124,8 @@ begin
 				BaseKey = currloop."BaseEntry";
 				BaseLine = currloop."BaseLine";
 				
-				Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+				AutoKeyProj = :AutoKeyProj + 1;
+				AutoKey = :AutoKeyProj;
 					
 				INSERT INTO "NDBS_BGC_OBPE"
 				("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",

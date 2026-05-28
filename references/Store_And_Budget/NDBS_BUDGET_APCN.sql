@@ -13,6 +13,8 @@ begin
 	-- Budget Control
 	Declare LineNum INTEGER DEFAULT 0;
 	Declare AutoKey Integer = 0;
+	Declare AutoKeyDept Integer = 0;
+	Declare AutoKeyProj Integer = 0;
 	Declare IsCancelled Nvarchar(1);
 	Declare OldProject Nvarchar(50);
 	Declare OldDept Nvarchar(50);
@@ -154,6 +156,9 @@ begin
 				end if;					
 			end for;
 		else
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
+
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM RPC1 T0 Inner Join ORPC T1 ON T0."DocEntry" = T1."DocEntry"
 			Inner Join RPD1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -189,7 +194,8 @@ begin
 						LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 						WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
 					
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+						AutoKeyDept = :AutoKeyDept + 1;
+						AutoKey = :AutoKeyDept;
 					
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
@@ -199,7 +205,8 @@ begin
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBDept,:BaseType,:BaseKey,:BaseLine,
 								'19',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','19',:DocKey,:DocLine);
 	
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+						AutoKeyDept = :AutoKeyDept + 1;
+						AutoKey = :AutoKeyDept;
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -230,7 +237,8 @@ begin
 						LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"
 						WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y' ;
 					
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
 					
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
@@ -240,7 +248,8 @@ begin
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldBProject,:BaseType,:BaseKey,:BaseLine,
 								'19',:DocKey,:DocLine,-:BaseAmount,'A',:BValDate,'A','19',:DocKey,:DocLine);	
 						
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -268,7 +277,8 @@ begin
 						BaseKey = currloop."BaseEntry";
 						BaseLine = currloop."BaseLine";
 					
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+						AutoKeyDept = :AutoKeyDept + 1;
+						AutoKey = :AutoKeyDept;
 						
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
@@ -294,7 +304,8 @@ begin
 						BaseKey = currloop."BaseEntry";
 						BaseLine = currloop."BaseLine";
 					
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
 						
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",

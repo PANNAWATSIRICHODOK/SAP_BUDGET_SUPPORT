@@ -13,6 +13,8 @@ begin
 	-- Budget Control
 	Declare LineNum INTEGER DEFAULT 0;
 	Declare AutoKey Integer = 0;
+	Declare AutoKeyDept Integer = 0;
+	Declare AutoKeyProj Integer = 0;
 	Declare IsCancelled Nvarchar(1);
 	Declare OldProject Nvarchar(50);
 	Declare OldDept Nvarchar(50);
@@ -113,7 +115,8 @@ begin
 		
 
 		if(:transaction_type IN ('A','U','C')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
 			for currloop as looppo do
 				if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 					BValDate = currloop."DocDate";
@@ -148,7 +151,8 @@ begin
 							
 							Order By T0."DocEntry" desc;
 		
-							Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+							AutoKeyDept = :AutoKeyDept + 1;
+							AutoKey = :AutoKeyDept;
 							INSERT INTO "NDBS_BGC_OBDE"
 							("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 							"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -177,7 +181,8 @@ begin
 							WHERE T0."DocEntry" = :DocKey AND T0."LineNum" = :DocLine AND IFNULL(I1."InvntItem",'N') <> 'Y';
 							
 							IF ((:BAvailable+:BaseAmount) >= :LineAmount) OR (:BLocked = 'N') OR  (:BNotChecked = 'Y') then
-								Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+								AutoKeyDept = :AutoKeyDept + 1;
+								AutoKey = :AutoKeyDept;
 								INSERT INTO "NDBS_BGC_OBDE"
 								("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 								"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -225,7 +230,8 @@ begin
 								AND "PrimaryObjectType" = '22' AND "PrimaryObjectID" = :DocKey AND "PrimaryObjectLine" = :DocLine
 								Order By "DocEntry" desc;
 			
-								Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+								AutoKeyProj = :AutoKeyProj + 1;
+								AutoKey = :AutoKeyProj;
 								INSERT INTO "NDBS_BGC_OBPE"
 								("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 								"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -250,7 +256,8 @@ begin
 							IF :BaseType IN ('-1','1470000113') then
 								IF (:BAvailable >= :LineAmount) OR (:BLocked = 'N') OR  (:BNotChecked = 'Y') then
 									if(:transaction_type IN ('A','U')) then
-										Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+										AutoKeyProj = :AutoKeyProj + 1;
+										AutoKey = :AutoKeyProj;
 										INSERT INTO "NDBS_BGC_OBPE"
 										("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 										"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -273,7 +280,8 @@ begin
 				end if;	
 			end for;
 		elseif (:transaction_type IN ('L')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+			Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
 				
 				for currloop as looppoclose do
 					if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
@@ -293,7 +301,8 @@ begin
 						BaseLine = currloop."BaseLine";
 											
 	
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+						AutoKeyDept = :AutoKeyDept + 1;
+						AutoKey = :AutoKeyDept;
 						INSERT INTO "NDBS_BGC_OBDE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
@@ -320,7 +329,8 @@ begin
 						BaseLine = currloop."BaseLine";
 											
 	
-						Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+						AutoKeyProj = :AutoKeyProj + 1;
+						AutoKey = :AutoKeyProj;
 						INSERT INTO "NDBS_BGC_OBPE"
 						("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
 						"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",

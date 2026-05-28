@@ -13,6 +13,8 @@ begin
 	-- Budget Control
 	Declare LineNum INTEGER DEFAULT 0;
 	Declare AutoKey Integer = 0;
+	Declare AutoKeyDept Integer = 0;
+	Declare AutoKeyProj Integer = 0;
 	Declare IsCancelled Nvarchar(1);
 	Declare OldProject Nvarchar(50);
 	Declare OldDept Nvarchar(50);
@@ -86,7 +88,8 @@ begin
 	
 	if(:transaction_type IN ('A','U')) then
 	
-		Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+		Select IFNULL(MAX("DocEntry"),0) into AutoKeyDept From "NDBS_BGC_OBDE";
+		Select IFNULL(MAX("DocEntry"),0) into AutoKeyProj From "NDBS_BGC_OBPE";
 		for currloop as loopje do
 			if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 			
@@ -105,7 +108,8 @@ begin
 				BaseKey = currloop."BaseEntry";
 				BaseLine = currloop."BaseLine";
 				
-				Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBDE";
+				AutoKeyDept = :AutoKeyDept + 1;
+				AutoKey = :AutoKeyDept;
 				
 				if (:transaction_type IN ('U')) THEN
 					Update "NDBS_BGC_OBDE" Set "BudgetStatus" = 'C' Where "ObjectType" = '30' AND "ObjectID"= :DocKey AND "ObjectLine" = :DocLine AND "BudgetStatus" in ('I','O'); 
@@ -135,7 +139,8 @@ begin
 				BaseKey = currloop."BaseEntry";
 				BaseLine = currloop."BaseLine";
 				
-				Select IFNULL(MAX("DocEntry")+1,1) into AutoKey From "NDBS_BGC_OBPE";
+				AutoKeyProj = :AutoKeyProj + 1;
+				AutoKey = :AutoKeyProj;
 				if (:transaction_type IN ('U')) THEN
 				Update "NDBS_BGC_OBPE" Set "BudgetStatus" = 'C' Where "ObjectType" = '30' AND "ObjectID"= :DocKey AND "ObjectLine" = :DocLine AND "BudgetStatus" in ('I','O'); 
 				end if;	
