@@ -123,7 +123,7 @@ begin
 					Select Count(*)  into BCount
 					From "NDBS_BGC_OBDE" 
 					Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-					IF BCount >= 0 then
+					IF BCount > 0 then
 					--IF :BaseKey NOT IN  ('2319') THEN 
 						Select TOP 1 "BudgetYear","BudgetGroup","Department"  into OldYear,OldGroup,OldDept
 						From "NDBS_BGC_OBDE" 
@@ -143,7 +143,7 @@ begin
 					Select Count(*)  into BCount
 					From "NDBS_BGC_OBPE" 
 						Where "PrimaryObjectType" = :BaseType AND "PrimaryObjectID" = :BaseKey AND "PrimaryObjectLine" = :BaseLine;
-					IF BCount >= 0 then
+					IF BCount > 0 then
 						--IF :BaseKey NOT IN  ('2319') THEN 
 						Select TOP 1 "BudgetYear","BudgetGroup","Project"  into OldYear,OldGroup,OldProject
 						From "NDBS_BGC_OBPE" 

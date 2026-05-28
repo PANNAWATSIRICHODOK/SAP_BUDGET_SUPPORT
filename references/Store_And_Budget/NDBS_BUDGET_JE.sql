@@ -68,7 +68,19 @@ begin
 		INNER Join "@NDBS_BGC_BGPL" T4 ON T4."U_AccountCode" = T3."AcctCode"
 		INNER Join "@NDBS_BGC_OBGP" T5 ON T4."Code" = T5."Code"
 		LEFT Join OPRC T6 ON T6."PrcCode" = T0."ProfitCode"
-		Where (T0."Debit"-T0."Credit") <> 0 AND T0."TransType" IN( '30','46','24','59','60') AND T0."TransId" = :datakey AND IFNULL(T1."U_NDBS_UseBudget",'N') = 'Y';	
+		Where (T0."Debit"-T0."Credit") <> 0
+		AND T0."TransType" IN( '30','46','24','59','60')
+		AND (
+			(:object_type = '30' AND TO_NVARCHAR(T0."TransId") = :datakey)
+			OR (:object_type = '24' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM ORCT WHERE TO_NVARCHAR("DocEntry") = :datakey))
+			OR (:object_type = '46' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OVPM WHERE TO_NVARCHAR("DocEntry") = :datakey))
+			OR (:object_type = '59' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OIGN WHERE TO_NVARCHAR("DocEntry") = :datakey))
+			OR (:object_type = '60' AND TO_NVARCHAR(T0."TransId") = (SELECT TO_NVARCHAR("TransId") FROM OIGE WHERE TO_NVARCHAR("DocEntry") = :datakey))
+		)
+		AND (
+			(:object_type = '30' AND IFNULL(T1."U_NDBS_UseBudget",'N') = 'Y')
+			OR (:object_type IN ('46','24','59','60'))
+		);
 	
 
 	

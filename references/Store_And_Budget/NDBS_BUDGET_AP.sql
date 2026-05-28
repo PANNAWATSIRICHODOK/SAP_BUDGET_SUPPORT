@@ -600,7 +600,7 @@ begin
 									FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 									Inner Join POR1 T3 ON T3."DocEntry" = T0."BaseEntry" AND T3."LineNum" = T0."BaseLine" AND T0."BaseType" = '22'
 									Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"
-									Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"
+									Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."FormatCode"
 									Inner Join "@NDBS_BGC_OBGP" T6 ON T5."Code" = T6."Code"
 									--- 24 Oct 2025 ---
 									LEFT Join OITM I1 ON T0."ItemCode"=I1."ItemCode"

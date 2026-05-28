@@ -1104,7 +1104,7 @@ IF :object_type ='30' And (:transaction_type = 'A' OR :transaction_type = 'U') T
 End If;
 
 if :error = 0 then
-	IF :object_type In ('22','20','18','19','30','24','46','59','60') then
+	IF :object_type In ('1470000113','22','20','21','18','19','30','24','46','59','60') then
 		call NDBS_BUDGET_CONTROL (:object_type,:transaction_type,:datakey,:list_of_key_cols_tab_del,:list_of_cols_val_tab_del,:error,:error_message);
 	end if;
 end if;
