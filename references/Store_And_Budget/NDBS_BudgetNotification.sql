@@ -186,11 +186,16 @@ THEN
 	end if;
 END IF;
 if :error = 0 then
+	Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+	Select IFNULL(MAX("DocEntry"),0) into BCOunt From "NDBS_BGC_OBPE";
+	IF :BCOunt > :AutoKey THEN
+		AutoKey = :BCOunt;
+	END IF;
+
 IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transaction_type IN ('A','U','C','L')) then
 	-- Department
 	if ( :object_type = '1470000113') then
 		if(:transaction_type in ('A','U','C')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			for currloop as looppr do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -256,7 +261,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '22') then
 		if(:transaction_type IN ('A','U','C')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			for currloop as looppo do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -331,7 +335,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '20') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			for currloop as loopgrn do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -375,8 +378,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '18') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
-			
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 			--Inner Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -496,8 +497,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '19') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
-			
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM RPC1 T0 Inner Join ORPC T1 ON T0."DocEntry" = T1."DocEntry"
 			Inner Join RPD1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -583,7 +582,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '30') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			for currloop as loopje do
 				BValDate = currloop."RefDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -621,7 +619,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 	-- Project
 	if ( :object_type = '1470000113') then
 		if(:transaction_type in ('A','U','C')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			for currloop as looppr do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -689,7 +686,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '22') then
 		if(:transaction_type IN ('A','U','C')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			for currloop as looppo do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -766,7 +762,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '20') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			for currloop as loopgrn do
 				BValDate = currloop."DocDate";
 				BYear = currloop."U_NDBS_BudgetYear";
@@ -810,8 +805,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '18') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
-			
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM PCH1 T0 Inner Join OPCH T1 ON T0."DocEntry" = T1."DocEntry"
 			--Inner Join PDN1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -932,8 +925,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '19') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
-			
 			SELECT IFNULL(Count(T0."LineNum"),0) into Bcount
 			FROM RPC1 T0 Inner Join ORPC T1 ON T0."DocEntry" = T1."DocEntry"
 			Inner Join RPD1 T2 ON T2."DocEntry" = T0."BaseEntry" AND T2."LineNum" = T0."BaseLine"
@@ -1019,7 +1010,6 @@ IF ( :object_type in ('1470000113','30','22','21','20','18','19') AND :transacti
 		end if;
 	elseif ( :object_type = '30') then
 		if(:transaction_type IN ('A')) then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			for currloop as loopje do
 				BValDate = currloop."RefDate";
 				BYear = currloop."U_NDBS_BudgetYear";

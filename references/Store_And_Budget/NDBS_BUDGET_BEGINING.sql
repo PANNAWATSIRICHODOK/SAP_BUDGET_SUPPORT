@@ -279,39 +279,14 @@ begin
 		 
 		 ;		
 		 
-    /*
-	for currloop as looppr do
-		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
-			AutoKey = :AutoKey+1;
-			INSERT INTO "NDBS_BGC_OBDE"
-			("DocEntry","BudgetGroup" ,"BudgetYear","Department","ObjectType","ObjectID","ObjectLine",
-			"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
-			"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine","BF","TYPE")
-			VALUES
-				(:AutoKey,currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),currloop."OcrCode",'1470000113',currloop."DocEntry",currloop."LineNum",
-					'',0,0,currloop."LineTotal",'R',currloop."DocDate",'I','1470000113',currloop."DocEntry",currloop."LineNum",'Y','looppr');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
-		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
-			AutoKey = :AutoKey+1;
-			INSERT INTO "NDBS_BGC_OBPE"
-			("DocEntry","BudgetGroup" ,"BudgetYear","Project","ObjectType","ObjectID","ObjectLine",
-			"BaseType","BaseID","BaseLine","Amount","BudgetType","ValueDate","BudgetStatus",
-			"PrimaryObjectType","PrimaryObjectID","PrimaryObjectLine","BF","TYPE")
-			VALUES
-				(:AutoKey,currloop."Code",TO_NVARCHAR(currloop."U_NDBS_BudgetYear"),currloop."Project",'1470000113',currloop."DocEntry",currloop."LineNum",
-					'',0,0,currloop."LineTotal",'R',currloop."DocDate",'I','1470000113',currloop."DocEntry",currloop."LineNum",'Y','looppr');
-					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
-		end if;
-	end for;
-	*/
-	
-	
+	Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+	Select IFNULL(MAX("DocEntry"),0) into BCOunt From "NDBS_BGC_OBPE";
+	IF :BCOunt > :AutoKey THEN
+		AutoKey = :BCOunt;
+	END IF;
+
 	for currloop as looppo do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -336,9 +311,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine,'Y','looppo');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -364,13 +337,11 @@ begin
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I',
 					'22',:DocKey,:DocLine,'Y','looppo');		
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);		
 		end if;	
 	end for;
 	
 	for currloop as loopgrn do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -394,9 +365,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'20',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','20',:DocKey,:DocLine,'Y','loopgrn');	
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -421,13 +390,11 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'20',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','20',:DocKey,:DocLine,'Y','loopgrn');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	
 	for currloop as loopinv1 do
-		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -452,10 +419,8 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:OldDept,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv1');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:OldDept);
 			
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -480,13 +445,11 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv1');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	
 	for currloop as loopinv2 do
-		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -510,9 +473,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv2');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -538,13 +499,11 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv2');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	
 	for currloop as loopinv3 do
-		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then 
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+		IF (currloop."Project" IS NULL) OR (currloop."Project" = '') then
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -568,9 +527,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv3');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -596,13 +553,11 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'18',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','18',:DocKey,:DocLine,'Y','loopinv3');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	
 	for currloop as loopreturn do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -627,9 +582,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'21',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','21',:DocKey,:DocLine,'Y','loopreturn');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -655,12 +608,10 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'21',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','21',:DocKey,:DocLine,'Y','loopreturn');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	for currloop as loopcn1 do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -683,9 +634,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'19',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine,'Y','loopcn1');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -710,12 +659,10 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'19',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine,'Y','loopcn1');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	for currloop as loopcn2 do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -738,9 +685,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'19',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine,'Y','loopcn2');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."DocDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."OcrCode";
@@ -765,12 +710,10 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'19',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,-:BAmount,'A',:BValDate,'I','19',:DocKey,:DocLine,'Y','loopcn2');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		end if;	
 	end for;
 	for currloop as loopje do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
 			BValDate = currloop."RefDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."ProfitCode";
@@ -795,9 +738,7 @@ begin
 			VALUES
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'30',:DocKey,:DocLine,
 					'',0,0,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine,'Y','loopje');
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		elseif (currloop."Project" <> '') then
-			Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 			BValDate = currloop."RefDate";
 			BYear = currloop."U_NDBS_BudgetYear";
 			BDept = currloop."ProfitCode";
@@ -823,9 +764,10 @@ begin
 				(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'30',:DocKey,:DocLine,
 					:BaseType,:BaseKey,:BaseLine,:BAmount,'A',:BValDate,'I','30',:DocKey,:DocLine,'Y','loopje');
 					
-			Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);	
 		end if;	
 		
 	end for;
-	
+
+	call NDBS_UpdateAllBudgetAmount;
+
 end;

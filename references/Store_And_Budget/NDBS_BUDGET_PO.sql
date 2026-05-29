@@ -161,7 +161,6 @@ begin
 								(:AutoKey,:OldGroup,:OldYear,:OldDept,'22',:DocKey,:DocLine,
 										'',0,0,:BAvailable,'R',:BValDate,'I','22',:DocKey,:DocLine);
 										
-							--Call NDBS_UpdateBudgetAmount(:OldGroup,:OldYear,'D',:OldDept);
 						end if;
 					end if;
 					
@@ -191,7 +190,6 @@ begin
 									(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
 										:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 								
-								--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);	
 		
 							else
 								error = -32;
@@ -240,7 +238,6 @@ begin
 									(:AutoKey,:OldGroup,:OldYear,:OldProject,'22',:DocKey,:DocLine,
 											'',0,0,:BAvailable,'R',:BValDate,'I','22',:DocKey,:DocLine);
 			
-								--Call NDBS_UpdateBudgetAmount(:OldGroup,:OldYear,'P',:OldProject);
 							end if;
 						end if;
 						if(:transaction_type in ('U','A')) then
@@ -267,7 +264,6 @@ begin
 												:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I',
 												'22',:DocKey,:DocLine);
 												
-										--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 									end if;
 								else
 									error = -32;
@@ -311,7 +307,6 @@ begin
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BDept,'22',:DocKey,:DocLine,
 								:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 								
-						--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 					else
 						BValDate = currloop."DocDate";
 						BYear = currloop."U_NDBS_BudgetYear";
@@ -339,7 +334,6 @@ begin
 							(:AutoKey,:BCode,TO_NVARCHAR(:BYear),:BProject,'22',:DocKey,:DocLine,
 								:BaseType,:BaseKey,:BaseLine,:BAmount,'R',:BValDate,'I','22',:DocKey,:DocLine);
 								
-						--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);	
 					end if;
 				end for;
 			
@@ -364,7 +358,6 @@ begin
 			Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A') AND "ObjectID" = currloop."DocEntry" AND "ObjectLine" = currloop."LineNum"
 			Group By "BudgetGroup","BudgetYear","Project","ObjectType","ObjectID","ObjectLine","BudgetType","ValueDate";
 					
-			--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		else 
 			
 			--AutoKey = :AutoKey+1;
@@ -378,7 +371,6 @@ begin
 			Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A') AND "ObjectID" = currloop."DocEntry" AND "ObjectLine" = currloop."LineNum"
 			Group By "BudgetGroup","BudgetYear","Department","ObjectType","ObjectID","ObjectLine","BudgetType","ValueDate";
 					
-			--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		end if;
 	end for;
 	
@@ -400,7 +392,6 @@ begin
 			Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A') AND "ObjectID" = currloop."DocEntry" AND "ObjectLine" = currloop."LineNum"
 			Group By "BudgetGroup","BudgetYear","Project","ObjectType","ObjectID","ObjectLine","BudgetType","ValueDate";
 					
-			--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'P',:BProject);
 		else 
 			
 			--AutoKey = :AutoKey+1;
@@ -414,7 +405,6 @@ begin
 			Where "ObjectType" = '22' AND "BudgetStatus" IN ('I','A') AND "ObjectID" = currloop."DocEntry" AND "ObjectLine" = currloop."LineNum"
 			Group By "BudgetGroup","BudgetYear","Department","ObjectType","ObjectID","ObjectLine","BudgetType","ValueDate";
 					
-			--Call NDBS_UpdateBudgetAmount(:BCode,TO_NVARCHAR(:BYear),'D',:BDept);
 		end if;
 	end for;
 

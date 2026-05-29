@@ -31,6 +31,10 @@ begin
 		Where T0."LineTotal" <> 0 AND T0."DocEntry" = :datakey;
 			
 	Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBDE";
+	Select IFNULL(MAX("DocEntry"),0) into CountRec From "NDBS_BGC_OBPE";
+	IF :CountRec > :AutoKey THEN
+		AutoKey = :CountRec;
+	END IF;
 	
 	for currloop as looppr do
 		if (currloop."Project" IS NULL) OR (currloop."Project" = '') then
@@ -90,7 +94,6 @@ begin
 				error = 36;
 				error_message = 'No Budget Setup for Project ';-- + currloop."Project" + ' And Group ' + currloop."Code";
 			else
-				Select IFNULL(MAX("DocEntry"),0) into AutoKey From "NDBS_BGC_OBPE";
 				if(:transaction_type in ('U','C','L')) then
 					SELECT TOP 1  IFNULL(-"Amount",0),"Project","BudgetGroup","BudgetYear" 
 					into BAvailable,OldDept,OldGroup,OldYear

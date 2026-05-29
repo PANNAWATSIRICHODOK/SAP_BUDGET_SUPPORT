@@ -16,6 +16,9 @@ ON "NDBS_BGC_OBDE" ("PrimaryObjectType","PrimaryObjectID","BudgetGroup","BudgetY
 CREATE INDEX "IDX_OBDE_BASE_TOUCH"
 ON "NDBS_BGC_OBDE" ("BaseType","BaseID","BudgetGroup","BudgetYear","Department","Amount");
 
+CREATE INDEX "IDX_OBDE_OBJECT_LINE_LATEST"
+ON "NDBS_BGC_OBDE" ("ObjectType","ObjectID","ObjectLine","DocEntry");
+
 CREATE INDEX "IDX_OBPE_OBJECT_TOUCH"
 ON "NDBS_BGC_OBPE" ("ObjectType","ObjectID","BudgetGroup","BudgetYear","Project","Amount");
 
@@ -24,6 +27,9 @@ ON "NDBS_BGC_OBPE" ("PrimaryObjectType","PrimaryObjectID","BudgetGroup","BudgetY
 
 CREATE INDEX "IDX_OBPE_BASE_TOUCH"
 ON "NDBS_BGC_OBPE" ("BaseType","BaseID","BudgetGroup","BudgetYear","Project","Amount");
+
+CREATE INDEX "IDX_OBPE_OBJECT_LINE_LATEST"
+ON "NDBS_BGC_OBPE" ("ObjectType","ObjectID","ObjectLine","DocEntry");
 
 CREATE INDEX "IDX_BDPL_UPDATE"
 ON "@NDBS_BGC_BDPL" ("Code","U_GroupCode","U_Department");
