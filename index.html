@@ -18,6 +18,7 @@
       --sap-muted: #6a6d70;
       --sap-error: #bb0000;
       --sap-warning: #e9730c;
+      --sap-ok: #107e3e;
       --font-sans: "Inter", "Sarabun", "Noto Sans Thai", sans-serif;
       --font-mono: "JetBrains Mono", monospace;
       --max-width: 960px;
@@ -291,106 +292,153 @@
 <body>
   <div class="container">
     <header>
-      <span class="eyebrow">SAP Business One // Store_And_Budget_New // main branch</span>
-      <h1>Budget Flow: จุดที่ยังต้องดูจาก Store ล่าสุด</h1>
-      <p>สรุปเฉพาะ logic ที่ยังเห็นจาก SQL จริงในชุด Store_And_Budget_New โดยตัดเคสเดิมที่ยืนยันว่าโอเคแล้วออกจากรายงานนี้.</p>
+      <span class="eyebrow">SAP Business One // UAT_JBF2 // Store_And_Budget ล่าสุด</span>
+      <h1>Budget Flow: จุดที่ยังต้องแก้</h1>
+      <p>สรุปจาก SQL reference ล่าสุด เทียบกับคู่มือ และปรับตาม requirement ล่าสุดว่าไม่ต้องรวมเอกสาร PR เข้า Budget.</p>
     </header>
 
     <div class="notice-box">
-      Scope ล่าสุด: <span style="color: var(--sap-blue)">PR ใช้บังคับข้อมูล ไม่รวมเข้า Budget</span> |
-      <span style="color: var(--sap-warning)">Actual ต้องเข้า Monitor ตามเอกสารที่อยู่ใน scope</span>
+      Expected ล่าสุด: <span style="color: var(--sap-blue)">Reserved = PO</span> |
+      <span style="color: var(--sap-warning)">Actual = AP + CN + JE + OUTGOING + GI + GR</span>
       <div class="manual-source">
-        ตรวจจาก routing ใน SBO_SP_TransactionNotification, NDBS_BUDGET_CONTROL และ procedure ที่เกี่ยวข้องใน Store_And_Budget_New.
+        หมายเหตุ: คู่มือเดิมระบุ Reserved = PR + PO แต่ requirement ล่าสุดตัด PR ออกจาก Budget แล้ว จึงไม่รายงาน PR เป็น bug.
       </div>
     </div>
 
     <section class="summary" aria-label="Summary">
       <div class="summary-item">
-        <span class="summary-value">3</span>
-        <span class="summary-label">logic ที่ยังควรแก้หรือยืนยัน</span>
+        <span class="summary-value">4</span>
+        <span class="summary-label">bug ที่ยังเห็นจาก code</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">5</span>
-        <span class="summary-label">SQL files ที่เกี่ยวข้อง</span>
+        <span class="summary-value">1</span>
+        <span class="summary-label">risk ที่ต้องคุมก่อนตรวจซ้ำ</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">0</span>
-        <span class="summary-label">เคสเก่าที่นำมานับซ้ำ</span>
+        <span class="summary-value">1</span>
+        <span class="summary-label">จุดที่ต้องให้ vendor ยืนยัน</span>
       </div>
     </section>
 
     <main class="issue-stack" aria-label="Budget findings">
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_01 // PR_VALIDATION_NOT_ROUTED</div>
-          <span class="badge badge-critical">ต้องแก้</span>
+          <div class="issue-meta">BUG_01 // RETURN_NOT_TRIGGERED</div>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>1. PR Budget Year validation อยู่ใน Control แต่ไม่ได้ถูกเรียก</h2>
-        <p class="description"><code>NDBS_BUDGET_CONTROL</code> มี block ตรวจ PR line <code>OcrCode</code> และ <code>U_NDBS_BudgetYear</code> แต่ <code>SBO_SP_TransactionNotification</code> ไม่ได้ส่ง object type <code>1470000113</code> เข้า Control.</p>
-        <p class="manual-note"><strong>ผลกระทบ:</strong> ถ้าต้องบังคับ Budget Year ที่ PR จริง เงื่อนไขนี้จะไม่ทำงานจาก store ล่าสุด แม้ code ตรวจจะมีอยู่แล้ว.</p>
-        <p class="action">ควรแก้: ให้ PR เข้าเฉพาะ validation path โดยไม่เรียกสร้าง Budget movement ของ PR.</p>
+        <h2>1. Goods Return object 21 ไม่เข้า budget flow</h2>
+        <p class="description">Control มี branch สำหรับ Return แล้ว แต่ TN ไม่ส่ง object <code>21</code> เข้าไป.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือไม่ได้แยก Return ชัดเจน แต่ SQL ล่าสุดมี <code>NDBS_BUDGET_RETURN</code> และ control branch อยู่แล้ว จึงเป็น mismatch ที่ต้องให้ vendor ยืนยัน scope.</p>
+        <p class="action">ควรแก้: เพิ่ม <code>21</code> ใน call list ของ <code>SBO_SP_TransactionNotification</code>.</p>
         <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
           <div class="code-inner">
-            <span class="code-line buggy-line">IF :object_type In ('22','21','20','18','19','30') then</span>
-            <span class="code-line">  call NDBS_BUDGET_CONTROL (...);</span>
-            <span class="code-line">end if;</span>
+            <span class="code-line buggy-line">IF :object_type In ('22','20','18','19','30','24','46','59','60') then</span>
             <span class="code-line"></span>
-            <span class="code-line ok-line">IF :object_type ='1470000113' Then</span>
-            <span class="code-line ok-line">  ... IFNULL(t1."U_NDBS_BudgetYear",0)=0 ...</span>
-            <span class="code-line ok-line">End If;</span>
+            <span class="code-line ok-line">elseif ( :object_type = '21') then</span>
+            <span class="code-line ok-line">  Call NDBS_BUDGET_RETURN (...);</span>
           </div>
         </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">BUG_02 // ACTUAL_OBJECTS_NOT_ROUTED</div>
-          <span class="badge badge-critical">ต้องแก้</span>
+          <div class="issue-meta">BUG_02 // ACTUAL_DISPATCH_MISSING</div>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>2. Actual จาก Incoming / Outgoing / GI / GR ยังไม่เข้า Budget flow</h2>
-        <p class="description"><code>NDBS_BUDGET_JE</code> รองรับ <code>TransType 24,46,59,60</code> แล้ว แต่ Transaction Notification และ Control เรียก JE เฉพาะ <code>object_type = 30</code>.</p>
-        <p class="manual-note"><strong>ผลกระทบ:</strong> เอกสาร Incoming, Outgoing, Goods Receipt, Goods Issue ที่ควรไปเป็น Actual อาจไม่เข้า Monitor.</p>
-        <p class="action">ควรแก้: เพิ่ม routing สำหรับ object <code>24,46,59,60</code> และ map key ให้ JE ได้ <code>TransId</code> ที่ถูกต้อง.</p>
-        <span class="code-label">ไฟล์: SBO_SP_TransactionNotification.sql + NDBS_BUDGET_CONTROL.sql + NDBS_BUDGET_JE.sql</span>
+        <h2>2. OUTGOING / GI / GR เข้า TN แล้ว แต่ control ไม่ dispatch</h2>
+        <p class="description"><code>NDBS_BUDGET_JE</code> รองรับ <code>24,46,59,60</code> แต่ <code>NDBS_BUDGET_CONTROL</code> เรียก JE เฉพาะ object <code>30</code>.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม OUTGOING + GI + GR ดังนั้น object เหล่านี้ต้องสร้าง movement ได้จริง.</p>
+        <p class="action">ควรแก้: เพิ่ม dispatch สำหรับ <code>24,46,59,60</code> หรือปรับ branch JE ให้ครอบคลุม.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_JE.sql + NDBS_BUDGET_CONTROL.sql</span>
         <div class="code-block">
           <div class="code-inner">
-            <span class="code-line buggy-line">IF :object_type In ('22','21','20','18','19','30') then</span>
-            <span class="code-line">  call NDBS_BUDGET_CONTROL (...);</span>
-            <span class="code-line">end if;</span>
+            <span class="code-line ok-line">AND T0."TransType" IN( '30','46','24','59','60')</span>
             <span class="code-line"></span>
             <span class="code-line buggy-line">elseif ( :object_type = '30') then</span>
             <span class="code-line buggy-line">  Call NDBS_BUDGET_JE (...);</span>
-            <span class="code-line"></span>
-            <span class="code-line ok-line">T0."TransType" IN ('30','46','24','59','60')</span>
           </div>
         </div>
       </article>
 
       <article class="issue-card">
         <div class="issue-header">
-          <div class="issue-meta">RISK_01 // FULL_RECALC_STILL_USED</div>
-          <span class="badge badge-warning">performance</span>
+          <div class="issue-meta">BUG_03 // APCN_CANCEL_LOGIC</div>
+          <span class="badge badge-critical">ยังผิด</span>
         </div>
-        <h2>3. มี Touched update procedure แต่ runtime ยังใช้ Full recalculation</h2>
-        <p class="description">Store ล่าสุดมี <code>NDBS_UpdateTouchedBudgetAmount</code> สำหรับ recalc เฉพาะงบที่โดนแตะ แต่ <code>NDBS_BUDGET_CONTROL</code> ยังเรียก <code>NDBS_UpdateAllBudgetAmount</code> ทุกครั้งหลังผ่าน budget flow.</p>
-        <p class="manual-note"><strong>ผลกระทบ:</strong> ความถูกต้องอาจยังได้ แต่มีความเสี่ยงเรื่อง performance เพราะทุก transaction ไปคำนวณยอดทั้งหมด.</p>
-        <p class="action">ควรทำ: เปลี่ยน runtime ไปใช้ touched refresh หรือให้ vendor ยืนยันเหตุผลที่ยังต้อง full refresh.</p>
-        <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL.sql + NDBS_UpdateTouchedBudgetAmount.sql + NDBS_UpdateAllBudgetAmount.sql</span>
+        <h2>3. APCN Cancel ใช้เงื่อนไขที่จริงเสมอ</h2>
+        <p class="description"><code>BCount >= 0</code> ผ่านเสมอ แม้ไม่พบ movement เดิม จึงเสี่ยง reverse ผิดหรือเจอ no data found.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Actual ต้องรวม CN; การ cancel/reverse ของ CN ต้องจับ movement เดิมให้ถูก ไม่ใช่ผ่านเงื่อนไขเสมอ.</p>
+        <p class="action">ควรแก้: เปลี่ยนเป็น <code>BCount > 0</code> และจัดการกรณีไม่พบข้อมูลให้ชัดเจน.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_APCN.sql</span>
         <div class="code-block">
           <div class="code-inner">
-            <span class="code-line">DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;</span>
-            <span class="code-line">DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;</span>
-            <span class="code-line buggy-line">call NDBS_UpdateAllBudgetAmount;</span>
-            <span class="code-line"></span>
-            <span class="code-line ok-line">CREATE PROCEDURE NDBS_UpdateTouchedBudgetAmount (...)</span>
+            <span class="code-line">Select Count(*) into BCount From "NDBS_BGC_OBPE" Where ...;</span>
+            <span class="code-line buggy-line">IF BCount >= 0 then</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">BUG_04 // AP_ACCOUNT_MAPPING</div>
+          <span class="badge badge-critical">ยังผิด</span>
+        </div>
+        <h2>4. AP mapping ใช้ FormatCode เทียบกับ AcctCode</h2>
+        <p class="description">ถ้า budget setup เก็บ <code>U_FormatCode</code> จริง จุดนี้จะหา budget group ไม่เจอ.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> คู่มือให้ตั้ง COA และ Budget Group เป็นฐานควบคุมงบ; join account ผิดทำให้เอกสาร AP หา budget group ไม่ถูก.</p>
+        <p class="action">ควรแก้: เทียบกับ <code>T4."FormatCode"</code> ให้ตรงกับ pattern ที่ถูกใน procedure อื่น.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_AP.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">Inner Join OACT T4 ON T3."AcctCode" = T4."AcctCode"</span>
+            <span class="code-line buggy-line">Inner Join "@NDBS_BGC_BGPL" T5 ON T5."U_FormatCode" = T4."AcctCode"</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">RISK_01 // FULL_REFRESH</div>
+          <span class="badge badge-warning">performance</span>
+        </div>
+        <h2>5. Full refresh ถูกเรียกทุก transaction</h2>
+        <p class="description"><code>NDBS_UpdateAllBudgetAmount</code> เป็น set-based แล้ว แต่การเรียกทุกครั้งยังเสี่ยงช้าเมื่อข้อมูลเยอะ.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> Balance และ Remaining ของ Budget Department/Project อ้างอิงยอด Reserved + Actual; refresh ที่ช้าหรือผิดจะกระทบหน้าจอตรวจสอบงบ.</p>
+        <p class="action">ควรทำ: ยืนยัน performance บน UAT และพิจารณา refresh เฉพาะ budget key ที่กระทบ.</p>
+        <span class="code-label">ไฟล์: NDBS_BUDGET_CONTROL.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">if (error = 0) then</span>
+            <span class="code-line">  DELETE FROM NDBS_BGC_OBPE WHERE "Amount"=0;</span>
+            <span class="code-line">  DELETE FROM NDBS_BGC_OBDE WHERE "Amount"=0;</span>
+            <span class="code-line buggy-line">  call NDBS_UpdateAllBudgetAmount;</span>
+            <span class="code-line">end if;</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="issue-card">
+        <div class="issue-header">
+          <div class="issue-meta">CHECK_01 // LEGACY_NOTIFICATION_UNUSED</div>
+          <span class="badge badge-warning">ต้องยืนยัน</span>
+        </div>
+        <h2>6. NDBS_BudgetNotification ยังอยู่ แต่ไม่พบ caller</h2>
+        <p class="description">procedure นี้มี logic หลาย object รวมถึง flow เก่าที่เกี่ยวกับ PR/Return แต่ค้นทั้งชุดแล้วไม่พบการ call จาก procedure อื่น.</p>
+        <p class="manual-note"><strong>เทียบคู่มือ:</strong> ไม่ใช่ requirement ที่คู่มือระบุชื่อ procedure แต่เป็นความเสี่ยงด้าน implementation ว่ามี logic เก่าค้างหรือหลุดจาก flow.</p>
+        <p class="action">ควรให้ vendor ยืนยัน: เป็น legacy ที่เลิกใช้แล้ว หรือยังต้องผูกกลับเข้าระบบ.</p>
+        <span class="code-label">ไฟล์: NDBS_BudgetNotification.sql</span>
+        <div class="code-block">
+          <div class="code-inner">
+            <span class="code-line">CREATE PROCEDURE NDBS_BudgetNotification</span>
+            <span class="code-line buggy-line">-- ไม่พบ call NDBS_BudgetNotification ใน SQL ชุดล่าสุด</span>
           </div>
         </div>
       </article>
     </main>
 
     <footer>
-      Source: references/Store_And_Budget_New. Theme restored from commit efd48e543b22a4602bb24438d9ac72881244aeeb.
+      ตรวจจาก references/Store_And_Budget ล่าสุด + references/BIC_budget User Manual.docx + requirement ล่าสุดจากหัวหน้า
     </footer>
   </div>
 </body>
